@@ -3,8 +3,13 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  
+  // Enable CORS for testing
+  app.enableCors();
+  
   await app.listen(3000);
   console.log('Application is running on: http://localhost:3000');
+  console.log('MongoDB connection configured');
 }
 bootstrap();
 
