@@ -4,7 +4,7 @@ require('dotenv').config();
 
 const uri = process.env.MONGO_URI;
 
-mongoose.connect(uri)
+mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => {
     console.log('✅ MongoDB is connected successfully!');
     process.exit(0); // Exit after test

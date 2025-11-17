@@ -73,3 +73,20 @@ README.md
 DATA_MODEL.md
 API_DESIGN.md
 SYSTEM_FLOW.md
+
+## 4. API Endpoints (Available)
+
+All endpoints are prefixed with /api and return JSON data from MongoDB collections.
+
+Recruitment Jobs
+Method	Endpoint	Description
+GET	/api/recruitment-jobs	Get all recruitment jobs
+GET	/api/recruitment-jobs/:id	Get a single job by jobId
+Onboarding Tasks
+Method	Endpoint	Description
+GET	/api/onboarding-tasks	Get all onboarding tasks
+GET	/api/onboarding-tasks/:id	Get a single onboarding task by onboardingId
+Offboarding Tasks
+Method	Endpoint	Description
+GET	/api/offboarding-tasks	Get all offboarding tasks
+GET	/api/offboarding-tasks/:id	Get a single offboarding task by offboardingId
