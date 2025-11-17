@@ -36,7 +36,7 @@ export const OnboardingChecklistSchema = new Schema(
     endDate: Date,
     provisioningPlanId: String,
     configurationTemplateId: { type: String, ref: 'OnboardingConfigTemplate' }, // Ref: None (Configuration)
-    notificationModuleRef: { type: String, ref: 'NotificationModule' }, // Notifications Module (N)
+    notificationId: { type: String, ref: 'Notification' }, // References notificationId in notifications collection
   },
   { _id: false },
 );

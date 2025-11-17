@@ -24,7 +24,7 @@ export const OffboardingChecklistSchema = new Schema(
     finalSettlementId: String,
     configurationTemplateId: { type: String, ref: 'OffboardingConfigTemplate' }, // None (Configuration)
     clearanceStatusUpdateIds: [{ type: String, ref: 'ClearanceStatusUpdate' }], // Clearance Status Updates (from Depts)
-    employeeProfileId: { type: String, ref: 'EmployeeProfile' }, // For resignation reason / employee link
+    employeeProfileId: { type: String, ref: 'Employee' }, // References employeeId in employees collection
   },
   { _id: false },
 );
