@@ -16,15 +16,16 @@ export const TerminationReviewSchema = new Schema(
       recentRatings: [{ type: Number }],
       warningCount: { type: Number, default: 0 },
     },
+    performanceAppraisalIds: [{ type: String, ref: 'PerformanceAppraisal' }], // References appraisalId in performanceAppraisals collection
     decision: {
       status: { type: String, enum: ['pending', 'approved', 'declined'], default: 'pending' },
       decidedBy: String,
       decidedAt: Date,
       notes: String,
     },
-    pmWarningId: { type: String, ref: 'PerformanceWarning' }, // Performance Management (Warnings/Low Scores)
+    pmWarningId: String, // Performance warning ID (may be in separate performanceWarnings collection or embedded in performanceAppraisals)
     configurationTemplateId: { type: String, ref: 'OffboardingConfigTemplate' }, // None (Configuration)
-    employeeProfileId: { type: String, ref: 'EmployeeProfile' }, // For inactive status
+    employeeProfileId: { type: String, ref: 'Employee' }, // References employeeId in employees collection
   },
   { _id: false },
 );
