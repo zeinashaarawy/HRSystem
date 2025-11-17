@@ -39,3 +39,9 @@ lerna-debug.log*
 .env.local
 /src/payslip
 /src/database
+
+# Test and dummy files
+test-crud.ps1
+DEBUG_GUIDE.md
+TEST_CRUD_PAYROLL_RUN_EMPLOYEE.md
+SCHEMA_ANALYSIS.md

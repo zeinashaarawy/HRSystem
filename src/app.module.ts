@@ -3,8 +3,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { PayslipModule } from './payslip/payslip.module';
 import { CollectionsInitService } from './database/collections-init.service';
+import { PayrollRunEmployeeModule } from './payroll-run-employee/payroll-run-employee.module';
 
 @Module({
   imports: [
@@ -19,7 +19,7 @@ import { CollectionsInitService } from './database/collections-init.service';
       }),
       inject: [ConfigService],
     }),
-    PayslipModule,
+    PayrollRunEmployeeModule,
   ],
   controllers: [AppController],
   providers: [AppService, CollectionsInitService],
