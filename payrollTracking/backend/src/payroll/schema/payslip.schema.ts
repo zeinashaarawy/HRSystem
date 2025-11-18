@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 
 @Schema({ timestamps: true })
-export class payslip {
+export class Payslip {
   @Prop({ type: Types.ObjectId, ref: 'Employee', required: true })
   employeeId: Types.ObjectId;
 
@@ -46,4 +46,4 @@ export class payslip {
   downloadCount: number;
 }
 
-export const PayslipSchema = SchemaFactory.createForClass(payslip);
+export const PayslipSchema = SchemaFactory.createForClass(Payslip);
