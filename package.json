@@ -29,6 +29,7 @@
   },
   "homepage": "https://github.com/rodayna-moamen/hr-recruitment-onboarding-offboarding#readme",
   "devDependencies": {
-    "nodemon": "^3.1.7"
+    "nodemon": "^3.1.7",
+    "@nestjs/testing": "^11.1.9"
   }
 }
