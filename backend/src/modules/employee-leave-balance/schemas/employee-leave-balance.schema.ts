@@ -12,13 +12,13 @@ export class EmployeeLeaveBalance {
   @Prop({ type: Map, of: Number, default: {} })
   balances: Map<string, number>;
 
-  @Prop({ default: {} })
-  pending: Record<string, number>;
+  @Prop({ type: Map, of: Number, default: {} })
+  pending: Map<string, number>;
 
-  @Prop({ default: {} })
-  accrued: Record<string, number>;
+  @Prop({ type: Map, of: Number, default: {} })
+  accrued: Map<string, number>;
 
-  @Prop({ default: [] })
+  @Prop({ type: Array, default: [] })
   auditTrail: Array<any>;
 }
 

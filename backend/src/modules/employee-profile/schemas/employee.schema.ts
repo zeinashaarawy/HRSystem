@@ -19,10 +19,10 @@ export class Employee extends Document {
   @Prop({ required: true, unique: true })
   email: string;
 
-  @Prop()
+  @Prop({ type: String })
   phone?: string;
 
-  @Prop()
+  @Prop({ type: String })
   nationalId?: string;
 
   @Prop({ type: Date })
@@ -31,7 +31,7 @@ export class Employee extends Document {
   @Prop({ type: Date, required: true })
   hireDate: Date;
 
-  @Prop({ default: 'ACTIVE' })
+  @Prop({ type: String, enum: ['ACTIVE', 'INACTIVE', 'TERMINATED'], default: 'ACTIVE' })
   status: EmploymentStatus;
 
   @Prop({ type: Types.ObjectId, ref: Department.name })
@@ -43,19 +43,19 @@ export class Employee extends Document {
   @Prop({ type: Types.ObjectId, ref: 'Employee', default: null })
   manager?: Types.ObjectId;
 
-  @Prop()
+  @Prop({ type: String })
   profilePictureUrl?: string;
 
-  @Prop()
+  @Prop({ type: String })
   addressLine1?: string;
 
-  @Prop()
+  @Prop({ type: String })
   addressLine2?: string;
 
-  @Prop()
+  @Prop({ type: String })
   city?: string;
 
-  @Prop()
+  @Prop({ type: String })
   country?: string;
 }
 

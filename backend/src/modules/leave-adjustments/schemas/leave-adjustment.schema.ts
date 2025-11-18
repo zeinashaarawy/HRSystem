@@ -11,19 +11,19 @@ export class LeaveAdjustment {
   @Prop({ required: true })
   leaveTypeCode: string;
 
-  @Prop({ required: true })
+  @Prop({ type: Number, required: true })
   days: number; // positive or negative
 
-  @Prop()
+  @Prop({ type: String })
   reason?: string;
 
-  @Prop({ default: 'pending' })
+  @Prop({ type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' })
   status: 'pending' | 'approved' | 'rejected';
 
-  @Prop()
+  @Prop({ type: Types.ObjectId, ref: 'Employee' })
   approverId?: Types.ObjectId;
 
-  @Prop({ default: [] })
+  @Prop({ type: Array, default: [] })
   auditTrail: Array<any>;
 }
 

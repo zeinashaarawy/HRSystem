@@ -2,13 +2,13 @@
 
 import { Controller, Get, Post, Body, Param } from '@nestjs/common';
 import { IntegrationService } from './integration.service';
-import { GetEmployeeProfileResponse } from './interfaces/employee-profile.interface';
-import { GetReportingLineResponse } from './interfaces/org-structure.interface';
-import {
+import type { GetEmployeeProfileResponse } from './interfaces/employee-profile.interface';
+import type { GetReportingLineResponse } from './interfaces/org-structure.interface';
+import type {
   LeaveBlockRequest,
   LeaveBlockResponse,
 } from './interfaces/time-management.interface';
-import {
+import type {
   SyncLeaveToPayrollRequest,
   SyncLeaveToPayrollResponse,
 } from './interfaces/payroll.interface';

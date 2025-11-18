@@ -17,22 +17,22 @@ export class LeaveRequest {
   @Prop({ type: Date, required: true })
   endDate: Date;
 
-  @Prop()
+  @Prop({ type: String })
   justification?: string;
 
-  @Prop()
+  @Prop({ type: String })
   documentUrl?: string;
 
-  @Prop({ default: 'pending' })
+  @Prop({ type: String, enum: ['pending', 'approved', 'rejected', 'cancelled'], default: 'pending' })
   status: 'pending' | 'approved' | 'rejected' | 'cancelled';
 
-  @Prop()
+  @Prop({ type: Types.ObjectId, ref: 'Employee' })
   managerId?: Types.ObjectId;
 
-  @Prop()
+  @Prop({ type: Types.ObjectId, ref: 'Employee' })
   hrAdminId?: Types.ObjectId;
 
-  @Prop({ default: [] })
+  @Prop({ type: Array, default: [] })
   auditTrail: Array<any>;
 }
 

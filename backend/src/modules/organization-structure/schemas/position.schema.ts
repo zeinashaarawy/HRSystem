@@ -16,7 +16,7 @@ export class Position extends Document {
   @Prop({ type: Types.ObjectId, ref: 'Position', default: null })
   reportsTo?: Types.ObjectId; // reporting line
 
-  @Prop()
+  @Prop({ type: String })
   payGrade?: string; // optional link to payroll grades
 
   @Prop({ default: false })

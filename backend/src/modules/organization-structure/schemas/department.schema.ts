@@ -9,7 +9,7 @@ export class Department extends Document {
   @Prop({ required: true })
   name: string; // e.g. "Human Resources"
 
-  @Prop()
+  @Prop({ type: String })
   costCenter?: string; // optional, for finance link
 
   @Prop({ default: true })

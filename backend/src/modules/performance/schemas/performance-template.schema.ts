@@ -9,7 +9,7 @@ export class PerformanceTemplate extends Document {
   @Prop({ required: true })
   type: string; // "annual", "probation", etc.
 
-  @Prop()
+  @Prop({ type: String })
   description?: string;
 
   @Prop({ default: true })

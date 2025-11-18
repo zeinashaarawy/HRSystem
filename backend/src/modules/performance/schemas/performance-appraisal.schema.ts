@@ -29,19 +29,19 @@ export class PerformanceAppraisal extends Document {
   @Prop({ type: Number })
   overallRating?: number;
 
-  @Prop()
+  @Prop({ type: String })
   managerComment?: string;
 
-  @Prop()
+  @Prop({ type: String })
   employeeComment?: string;
 
-  @Prop({ default: 'DRAFT' })
+  @Prop({ type: String, enum: ['DRAFT', 'SUBMITTED', 'PUBLISHED', 'DISPUTED', 'CLOSED'], default: 'DRAFT' })
   status: string; // DRAFT, SUBMITTED, PUBLISHED, DISPUTED, CLOSED
 
-  @Prop()
+  @Prop({ type: String })
   disputeReason?: string;
 
-  @Prop()
+  @Prop({ type: String })
   disputeResolution?: string;
 }
 

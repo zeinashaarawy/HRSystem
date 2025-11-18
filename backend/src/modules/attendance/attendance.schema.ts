@@ -34,8 +34,8 @@ export class Attendance {
   @Prop({ type: Number, default: 0 })
   workedMinutes: number;
 
-  @Prop({ type: String, default: null })
-  notes: string;
+  @Prop({ type: String })
+  notes?: string;
 
   @Prop({ type: Boolean, default: false })
   isManualEdit: boolean;

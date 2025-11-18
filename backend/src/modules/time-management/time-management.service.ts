@@ -1,24 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Attendance, AttendanceDocument } from './models/attendance.schema';
-import { Employee, EmployeeDocument } from './models/employee.schema';
-import { Department, DepartmentDocument } from './models/department.schema';
-import { Shift, ShiftDocument } from './models/shift.schema';
-import { Holiday, HolidayDocument } from './models/holiday.schema';
-import { Position, PositionDocument } from './models/position.schema';
-import { TimeException, TimeExceptionDocument } from './models/time-exception.schema';
+import { Model, Document } from 'mongoose';
+import { Attendance, AttendanceDocument } from '../attendance/attendance.schema';
+import { Employee } from '../employee-profile/schemas/employee.schema';
+import { Department } from '../organization-structure/schemas/department.schema';
+import { Shift, ShiftDocument } from '../shift/shift.schema';
+import { Holiday, HolidayDocument } from '../holiday/holiday.schema';
+import { Position } from '../organization-structure/schemas/position.schema';
+import { TimeException, TimeExceptionDocument } from '../time-exception/time-exception.schema';
 
 @Injectable()
 export class TimeManagementService {
   constructor(
-    @InjectModel('Attendance') private attendanceModel: Model<AttendanceDocument>,
-    @InjectModel('Employee') private employeeModel: Model<EmployeeDocument>,
-    @InjectModel('Department') private departmentModel: Model<DepartmentDocument>,
-    @InjectModel('Shift') private shiftModel: Model<ShiftDocument>,
-    @InjectModel('Holiday') private holidayModel: Model<HolidayDocument>,
-    @InjectModel('Position') private positionModel: Model<PositionDocument>,
-    @InjectModel('TimeException') private timeExceptionModel: Model<TimeExceptionDocument>
+    @InjectModel(Attendance.name) private attendanceModel: Model<AttendanceDocument>,
+    @InjectModel(Employee.name) private employeeModel: Model<Employee & Document>,
+    @InjectModel(Department.name) private departmentModel: Model<Department & Document>,
+    @InjectModel(Shift.name) private shiftModel: Model<ShiftDocument>,
+    @InjectModel(Holiday.name) private holidayModel: Model<HolidayDocument>,
+    @InjectModel(Position.name) private positionModel: Model<Position & Document>,
+    @InjectModel(TimeException.name) private timeExceptionModel: Model<TimeExceptionDocument>
   ) {}
 
   async getAttendanceSummary() {

@@ -17,7 +17,7 @@ export class PerformanceCycle extends Document {
   @Prop({ type: Types.ObjectId, ref: PerformanceTemplate.name, required: true })
   template: Types.ObjectId;
 
-  @Prop({ default: 'OPEN' })
+  @Prop({ type: String, enum: ['OPEN', 'CLOSED'], default: 'OPEN' })
   status: string; // "OPEN", "CLOSED", etc.
 
   @Prop({ type: [{ type: Types.ObjectId, ref: Department.name }], default: [] })
