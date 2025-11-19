@@ -15,8 +15,9 @@ describe('AppController', () => {
   });
 
   describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+    it('should return "HR Recruitment/Onboarding/Offboarding API is running."', () => {
+      expect(appController.getRoot()).toBe('HR Recruitment/Onboarding/Offboarding API is running.');
     });
   });
 });
+
