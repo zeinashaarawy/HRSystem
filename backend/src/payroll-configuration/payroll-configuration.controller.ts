@@ -1,12 +1,26 @@
-import { Body, Controller, Delete, Param, Patch } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Query,
+} from '@nestjs/common';
 import { PayrollConfigurationService } from './payroll-configuration.service';
+import { ConfigStatus } from './enums/payroll-configuration-enums';
 
-class UpdatePayrollConfigDto {
+class UpdateInsuranceBracketDto {
   payload: Record<string, any>;
 }
 
-class ApprovePayrollConfigDto {
+class ApproveInsuranceBracketDto {
   approverId: string;
+}
+
+class RejectInsuranceBracketDto {
+  reviewerId: string;
 }
 
 @Controller('payroll-configuration')
@@ -15,40 +29,74 @@ export class PayrollConfigurationController {
     private readonly payrollConfigurationService: PayrollConfigurationService,
   ) {}
 
-  @Patch(':collection/:configId')
-  editConfiguration(
-    @Param('collection') collection: string,
+  @Get('insurance-brackets')
+  listInsuranceBrackets(@Query('status') status?: string) {
+    const normalizedStatus = this.normalizeStatusFilter(status);
+    return this.payrollConfigurationService.listInsuranceBrackets(
+      normalizedStatus,
+    );
+  }
+
+  @Get('insurance-brackets/:configId')
+  getInsuranceBracket(@Param('configId') configId: string) {
+    return this.payrollConfigurationService.getInsuranceBracket(configId);
+  }
+
+  @Patch('insurance-brackets/:configId')
+  editInsuranceBracket(
     @Param('configId') configId: string,
-    @Body() { payload }: UpdatePayrollConfigDto,
+    @Body() { payload }: UpdateInsuranceBracketDto,
   ) {
-    return this.payrollConfigurationService.editConfiguration(
-      collection,
+    return this.payrollConfigurationService.updateInsuranceBracket(
       configId,
       payload,
     );
   }
 
-  @Patch(':collection/:configId/approve')
-  approveConfiguration(
-    @Param('collection') collection: string,
+  @Patch('insurance-brackets/:configId/approve')
+  approveInsuranceBracket(
     @Param('configId') configId: string,
-    @Body() { approverId }: ApprovePayrollConfigDto,
+    @Body() { approverId }: ApproveInsuranceBracketDto,
   ) {
-    return this.payrollConfigurationService.approveConfiguration(
-      collection,
+    return this.payrollConfigurationService.approveInsuranceBracket(
       configId,
       approverId,
     );
   }
 
-  @Delete(':collection/:configId')
-  deleteConfiguration(
-    @Param('collection') collection: string,
+  @Patch('insurance-brackets/:configId/reject')
+  rejectInsuranceBracket(
     @Param('configId') configId: string,
+    @Body() { reviewerId }: RejectInsuranceBracketDto,
   ) {
-    return this.payrollConfigurationService.deleteConfiguration(
-      collection,
+    return this.payrollConfigurationService.rejectInsuranceBracket(
       configId,
+      reviewerId,
     );
+  }
+
+  @Delete('insurance-brackets/:configId')
+  deleteInsuranceBracket(@Param('configId') configId: string) {
+    return this.payrollConfigurationService.deleteInsuranceBracket(configId);
+  }
+
+  private normalizeStatusFilter(
+    rawStatus?: string,
+  ): ConfigStatus | undefined {
+    if (!rawStatus) {
+      return undefined;
+    }
+
+    const lowerCased = rawStatus.toLowerCase();
+    const allowedStatuses = Object.values(ConfigStatus);
+    if (!allowedStatuses.includes(lowerCased as ConfigStatus)) {
+      throw new BadRequestException(
+        `Unsupported status filter "${rawStatus}". Allowed statuses: ${allowedStatuses.join(
+          ', ',
+        )}`,
+      );
+    }
+
+    return lowerCased as ConfigStatus;
   }
 }
