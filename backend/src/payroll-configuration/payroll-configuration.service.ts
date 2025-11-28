@@ -64,17 +64,28 @@ export class PayrollConfigurationService {
       throw new BadRequestException('Update payload is required');
     }
 
-    const updatedDoc = await model
-      .findByIdAndUpdate(configId, payload, {
-        new: true,
-      })
-      .lean();
-
-    if (!updatedDoc) {
+    // Check if configuration exists and is in DRAFT status
+    const existingDoc = await model.findById(configId).lean() as any;
+    if (!existingDoc) {
       throw new NotFoundException(
         `Configuration ${configId} not found in ${collection}`,
       );
     }
+
+    if (existingDoc.status !== ConfigStatus.DRAFT) {
+      throw new BadRequestException(
+        `Configuration can only be edited when status is ${ConfigStatus.DRAFT}`,
+      );
+    }
+
+    // Remove non-editable fields
+    const sanitizedPayload = this.sanitizePayload(payload);
+
+    const updatedDoc = await model
+      .findByIdAndUpdate(configId, sanitizedPayload, {
+        new: true,
+      })
+      .lean();
 
     return updatedDoc;
   }
@@ -250,6 +261,279 @@ export class PayrollConfigurationService {
       (field) => delete sanitizedPayload[field],
     );
     return sanitizedPayload;
+  }
+
+  private sanitizePayload(payload: Record<string, any>) {
+    const sanitizedPayload: Record<string, any> = { ...payload };
+    ['status', 'approvedBy', 'approvedAt', '_id', 'createdAt', 'updatedAt'].forEach(
+      (field) => delete sanitizedPayload[field],
+    );
+    return sanitizedPayload;
+  }
+
+  // Payroll Policies Configuration
+  async createPayrollPolicy(payload: Record<string, any>) {
+    const model = this.getModel('payrollPolicies');
+    const newPolicy = new model({
+      ...payload,
+      status: ConfigStatus.DRAFT,
+    });
+    return (await newPolicy.save()).toObject();
+  }
+
+  async updatePayrollPolicy(configId: string, payload: Record<string, any>) {
+    if (!payload || Object.keys(payload).length === 0) {
+      throw new BadRequestException('Update payload is required');
+    }
+
+    const sanitizedPayload = this.sanitizePayload(payload);
+    if (Object.keys(sanitizedPayload).length === 0) {
+      throw new BadRequestException('No editable fields provided');
+    }
+
+    return this.editConfiguration('payrollPolicies', configId, sanitizedPayload);
+  }
+
+  async getPayrollPolicy(configId: string) {
+    const model = this.getModel('payrollPolicies');
+    const doc = await model.findById(configId).lean();
+    if (!doc) {
+      throw new NotFoundException(
+        `Payroll policy ${configId} not found`,
+      );
+    }
+    return doc;
+  }
+
+  async listPayrollPolicies(status?: ConfigStatus) {
+    const model = this.getModel('payrollPolicies');
+    const filter: Record<string, any> = {};
+    if (status) {
+      filter.status = status;
+    }
+    return model.find(filter).sort({ createdAt: -1 }).lean();
+  }
+
+  // Pay Grades Configuration
+  async createPayGrade(payload: Record<string, any>) {
+    const model = this.getModel('payGrade');
+    const newPayGrade = new model({
+      ...payload,
+      status: ConfigStatus.DRAFT,
+    });
+    return (await newPayGrade.save()).toObject();
+  }
+
+  async updatePayGrade(configId: string, payload: Record<string, any>) {
+    if (!payload || Object.keys(payload).length === 0) {
+      throw new BadRequestException('Update payload is required');
+    }
+
+    const sanitizedPayload = this.sanitizePayload(payload);
+    if (Object.keys(sanitizedPayload).length === 0) {
+      throw new BadRequestException('No editable fields provided');
+    }
+
+    return this.editConfiguration('payGrade', configId, sanitizedPayload);
+  }
+
+  async getPayGrade(configId: string) {
+    const model = this.getModel('payGrade');
+    const doc = await model.findById(configId).lean();
+    if (!doc) {
+      throw new NotFoundException(
+        `Pay grade ${configId} not found`,
+      );
+    }
+    return doc;
+  }
+
+  async listPayGrades(status?: ConfigStatus) {
+    const model = this.getModel('payGrade');
+    const filter: Record<string, any> = {};
+    if (status) {
+      filter.status = status;
+    }
+    return model.find(filter).sort({ createdAt: -1 }).lean();
+  }
+
+  // Pay Types Configuration
+  async createPayType(payload: Record<string, any>) {
+    const model = this.getModel('payType');
+    const newPayType = new model({
+      ...payload,
+      status: ConfigStatus.DRAFT,
+    });
+    return (await newPayType.save()).toObject();
+  }
+
+  async updatePayType(configId: string, payload: Record<string, any>) {
+    if (!payload || Object.keys(payload).length === 0) {
+      throw new BadRequestException('Update payload is required');
+    }
+
+    const sanitizedPayload = this.sanitizePayload(payload);
+    if (Object.keys(sanitizedPayload).length === 0) {
+      throw new BadRequestException('No editable fields provided');
+    }
+
+    return this.editConfiguration('payType', configId, sanitizedPayload);
+  }
+
+  async getPayType(configId: string) {
+    const model = this.getModel('payType');
+    const doc = await model.findById(configId).lean();
+    if (!doc) {
+      throw new NotFoundException(
+        `Pay type ${configId} not found`,
+      );
+    }
+    return doc;
+  }
+
+  async listPayTypes(status?: ConfigStatus) {
+    const model = this.getModel('payType');
+    const filter: Record<string, any> = {};
+    if (status) {
+      filter.status = status;
+    }
+    return model.find(filter).sort({ createdAt: -1 }).lean();
+  }
+
+  // Allowance Configuration
+  async createAllowance(payload: Record<string, any>) {
+    const model = this.getModel('allowance');
+    const newAllowance = new model({
+      ...payload,
+      status: ConfigStatus.DRAFT,
+    });
+    return (await newAllowance.save()).toObject();
+  }
+
+  async updateAllowance(configId: string, payload: Record<string, any>) {
+    if (!payload || Object.keys(payload).length === 0) {
+      throw new BadRequestException('Update payload is required');
+    }
+
+    const sanitizedPayload = this.sanitizePayload(payload);
+    if (Object.keys(sanitizedPayload).length === 0) {
+      throw new BadRequestException('No editable fields provided');
+    }
+
+    return this.editConfiguration('allowance', configId, sanitizedPayload);
+  }
+
+  async getAllowance(configId: string) {
+    const model = this.getModel('allowance');
+    const doc = await model.findById(configId).lean();
+    if (!doc) {
+      throw new NotFoundException(
+        `Allowance ${configId} not found`,
+      );
+    }
+    return doc;
+  }
+
+  async listAllowances(status?: ConfigStatus) {
+    const model = this.getModel('allowance');
+    const filter: Record<string, any> = {};
+    if (status) {
+      filter.status = status;
+    }
+    return model.find(filter).sort({ createdAt: -1 }).lean();
+  }
+
+  // Signing Bonus Configuration
+  async createSigningBonus(payload: Record<string, any>) {
+    const model = this.getModel('signingBonus');
+    const newSigningBonus = new model({
+      ...payload,
+      status: ConfigStatus.DRAFT,
+    });
+    return (await newSigningBonus.save()).toObject();
+  }
+
+  async updateSigningBonus(configId: string, payload: Record<string, any>) {
+    if (!payload || Object.keys(payload).length === 0) {
+      throw new BadRequestException('Update payload is required');
+    }
+
+    const sanitizedPayload = this.sanitizePayload(payload);
+    if (Object.keys(sanitizedPayload).length === 0) {
+      throw new BadRequestException('No editable fields provided');
+    }
+
+    return this.editConfiguration('signingBonus', configId, sanitizedPayload);
+  }
+
+  async getSigningBonus(configId: string) {
+    const model = this.getModel('signingBonus');
+    const doc = await model.findById(configId).lean();
+    if (!doc) {
+      throw new NotFoundException(
+        `Signing bonus ${configId} not found`,
+      );
+    }
+    return doc;
+  }
+
+  async listSigningBonuses(status?: ConfigStatus) {
+    const model = this.getModel('signingBonus');
+    const filter: Record<string, any> = {};
+    if (status) {
+      filter.status = status;
+    }
+    return model.find(filter).sort({ createdAt: -1 }).lean();
+  }
+
+  // Termination and Resignation Benefits Configuration
+  async createTerminationResignationBenefits(payload: Record<string, any>) {
+    const model = this.getModel('terminationAndResignationBenefits');
+    const newBenefit = new model({
+      ...payload,
+      status: ConfigStatus.DRAFT,
+    });
+    return (await newBenefit.save()).toObject();
+  }
+
+  async updateTerminationResignationBenefits(
+    configId: string,
+    payload: Record<string, any>,
+  ) {
+    if (!payload || Object.keys(payload).length === 0) {
+      throw new BadRequestException('Update payload is required');
+    }
+
+    const sanitizedPayload = this.sanitizePayload(payload);
+    if (Object.keys(sanitizedPayload).length === 0) {
+      throw new BadRequestException('No editable fields provided');
+    }
+
+    return this.editConfiguration(
+      'terminationAndResignationBenefits',
+      configId,
+      sanitizedPayload,
+    );
+  }
+
+  async getTerminationResignationBenefits(configId: string) {
+    const model = this.getModel('terminationAndResignationBenefits');
+    const doc = await model.findById(configId).lean();
+    if (!doc) {
+      throw new NotFoundException(
+        `Termination/Resignation benefit ${configId} not found`,
+      );
+    }
+    return doc;
+  }
+
+  async listTerminationResignationBenefits(status?: ConfigStatus) {
+    const model = this.getModel('terminationAndResignationBenefits');
+    const filter: Record<string, any> = {};
+    if (status) {
+      filter.status = status;
+    }
+    return model.find(filter).sort({ createdAt: -1 }).lean();
   }
 
   private getModel(collection: string): Model<any> {
