@@ -536,6 +536,89 @@ export class PayrollConfigurationService {
     return model.find(filter).sort({ createdAt: -1 }).lean();
   }
 
+  // Company-Wide Settings Configuration
+  async createCompanyWideSettings(payload: Record<string, any>) {
+    const model = this.getModel('CompanyWideSettings');
+    
+    // Validate required fields
+    if (!payload.payDate) {
+      throw new BadRequestException('payDate is required');
+    }
+    if (!payload.timeZone) {
+      throw new BadRequestException('timeZone is required');
+    }
+    if (!payload.currency) {
+      throw new BadRequestException('currency is required');
+    }
+
+    // Check if company-wide settings already exist (typically only one should exist)
+    const existingSettings = await model.findOne().lean();
+    if (existingSettings) {
+      throw new BadRequestException(
+        'Company-wide settings already exist. Use update endpoint to modify existing settings.',
+      );
+    }
+
+    const newSettings = new model({
+      ...payload,
+    });
+    return (await newSettings.save()).toObject();
+  }
+
+  async updateCompanyWideSettings(configId: string, payload: Record<string, any>) {
+    if (!payload || Object.keys(payload).length === 0) {
+      throw new BadRequestException('Update payload is required');
+    }
+
+    const sanitizedPayload = this.sanitizePayload(payload);
+    if (Object.keys(sanitizedPayload).length === 0) {
+      throw new BadRequestException('No editable fields provided');
+    }
+
+    const model = this.getModel('CompanyWideSettings');
+    const existingDoc = await model.findById(configId).lean();
+    if (!existingDoc) {
+      throw new NotFoundException(
+        `Company-wide settings ${configId} not found`,
+      );
+    }
+
+    // Update the document
+    const updatedDoc = await model
+      .findByIdAndUpdate(configId, sanitizedPayload, {
+        new: true,
+      })
+      .lean();
+
+    return updatedDoc;
+  }
+
+  async getCompanyWideSettings(configId: string) {
+    const model = this.getModel('CompanyWideSettings');
+    const doc = await model.findById(configId).lean();
+    if (!doc) {
+      throw new NotFoundException(
+        `Company-wide settings ${configId} not found`,
+      );
+    }
+    return doc;
+  }
+
+  async listCompanyWideSettings() {
+    const model = this.getModel('CompanyWideSettings');
+    return model.find().sort({ createdAt: -1 }).lean();
+  }
+
+  async getActiveCompanyWideSettings() {
+    const model = this.getModel('CompanyWideSettings');
+    // Get the most recent settings (typically there should be only one)
+    const settings = await model.findOne().sort({ createdAt: -1 }).lean();
+    if (!settings) {
+      throw new NotFoundException('No company-wide settings found');
+    }
+    return settings;
+  }
+
   private getModel(collection: string): Model<any> {
     if (!this.connection) {
       throw new InternalServerErrorException('Database connection unavailable');

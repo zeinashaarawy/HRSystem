@@ -245,6 +245,38 @@ export class PayrollConfigurationController {
     );
   }
 
+  // Company-Wide Settings Configuration Endpoints
+  @Post('company-wide-settings')
+  createCompanyWideSettings(@Body() payload: CreateConfigurationDto) {
+    return this.payrollConfigurationService.createCompanyWideSettings(payload);
+  }
+
+  @Get('company-wide-settings/active')
+  getActiveCompanyWideSettings() {
+    return this.payrollConfigurationService.getActiveCompanyWideSettings();
+  }
+
+  @Get('company-wide-settings')
+  listCompanyWideSettings() {
+    return this.payrollConfigurationService.listCompanyWideSettings();
+  }
+
+  @Get('company-wide-settings/:configId')
+  getCompanyWideSettings(@Param('configId') configId: string) {
+    return this.payrollConfigurationService.getCompanyWideSettings(configId);
+  }
+
+  @Patch('company-wide-settings/:configId')
+  updateCompanyWideSettings(
+    @Param('configId') configId: string,
+    @Body() { payload }: UpdateConfigurationDto,
+  ) {
+    return this.payrollConfigurationService.updateCompanyWideSettings(
+      configId,
+      payload,
+    );
+  }
+
   private normalizeStatusFilter(
     rawStatus?: string,
   ): ConfigStatus | undefined {
