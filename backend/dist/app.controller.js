@@ -17,17 +17,8 @@ let AppController = class AppController {
     constructor(appService) {
         this.appService = appService;
     }
-    getRoot() {
-        return 'HR Recruitment/Onboarding/Offboarding API is running.';
-    }
-    getAllJobs() {
-        return this.appService.getAllJobs();
-    }
-    getOnboardingChecklists() {
-        return this.appService.getOnboardingChecklists();
-    }
-    getOffboardingChecklists() {
-        return this.appService.getOffboardingChecklists();
+    getHello() {
+        return this.appService.getHello();
     }
 };
 exports.AppController = AppController;
@@ -36,25 +27,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", String)
-], AppController.prototype, "getRoot", null);
-__decorate([
-    (0, common_1.Get)('recruitment/jobs'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
-], AppController.prototype, "getAllJobs", null);
-__decorate([
-    (0, common_1.Get)('onboarding/checklists'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
-], AppController.prototype, "getOnboardingChecklists", null);
-__decorate([
-    (0, common_1.Get)('offboarding/checklists'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
-], AppController.prototype, "getOffboardingChecklists", null);
+], AppController.prototype, "getHello", null);
 exports.AppController = AppController = __decorate([
     (0, common_1.Controller)(),
     __metadata("design:paramtypes", [app_service_1.AppService])
