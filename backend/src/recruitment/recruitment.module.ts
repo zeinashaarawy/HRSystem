@@ -15,7 +15,36 @@ import { Document,DocumentSchema } from './models/document.schema';
 import { TerminationRequest,TerminationRequestSchema } from './models/termination-request.schema';
 import { ClearanceChecklist,ClearanceChecklistSchema } from './models/clearance-checklist.schema';
 import { Onboarding,OnboardingSchema } from './models/onboarding.schema';
-import { EmployeeProfileModule } from '../employee-profile/employee-profile.module';
+import {
+  StubOnboardingService,
+  StubEmployeeProfileService,
+  StubOrganizationStructureService,
+} from './services/stub-services';
+
+/**
+ * RecruitmentModule with stub services for cross-subsystem integration.
+ * 
+ * When other subsystems are integrated:
+ * 1. Import the real modules (e.g., EmployeeProfileModule, OnboardingModule, etc.)
+ * 2. Remove the stub service providers
+ * 3. The real services will be injected automatically via their modules
+ * 
+ * Example integration:
+ * ```typescript
+ * @Module({
+ *   imports: [
+ *     MongooseModule.forFeature([...]),
+ *     EmployeeProfileModule,  // Add real module
+ *     OnboardingModule,        // Add real module
+ *     OrganizationStructureModule, // Add real module
+ *   ],
+ *   providers: [
+ *     RecruitmentService,
+ *     // Remove stub services - real ones come from imported modules
+ *   ],
+ * })
+ * ```
+ */
 @Module({
   imports:[MongooseModule.forFeature([
       { name: JobTemplate.name, schema: JobTemplateSchema },
@@ -31,10 +60,25 @@ import { EmployeeProfileModule } from '../employee-profile/employee-profile.modu
       { name: TerminationRequest.name, schema: TerminationRequestSchema },
       { name: ClearanceChecklist.name, schema: ClearanceChecklistSchema },
       { name: Onboarding.name, schema: OnboardingSchema },
-    ]),EmployeeProfileModule
+    ])
   ],
   controllers: [RecruitmentController],
-  providers: [RecruitmentService],
+  providers: [
+    RecruitmentService,
+    // Stub services for standalone operation - replace with real modules when integrated
+    {
+      provide: 'IOnboardingService',
+      useClass: StubOnboardingService,
+    },
+    {
+      provide: 'IEmployeeProfileService',
+      useClass: StubEmployeeProfileService,
+    },
+    {
+      provide: 'IOrganizationStructureService',
+      useClass: StubOrganizationStructureService,
+    },
+  ],
   exports:[RecruitmentService]
 
 })

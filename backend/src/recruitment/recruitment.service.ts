@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger, Optional, Inject } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
@@ -31,9 +31,22 @@ import { InterviewStatus } from './enums/interview-status.enum';
 import { OfferResponseStatus } from './enums/offer-response-status.enum';
 import { OfferFinalStatus } from './enums/offer-final-status.enum';
 import { ApprovalStatus } from './enums/approval-status.enum';
+import type { IOnboardingService } from '../shared/interfaces/onboarding.interface';
+import type { IEmployeeProfileService } from '../shared/interfaces/employee-profile.interface';
+import type { IOrganizationStructureService } from '../shared/interfaces/organization-structure.interface';
 
-// Throughout this service, wherever a dependency or data from Employee Profile, Organization Structure, Leaves, Payroll, or other subsystem is required to fulfill a requirement, a TODO comment is included to mark that integration point for future microservice/event/HTTP/API call wiring.
-
+/**
+ * RecruitmentService with optional cross-subsystem dependencies.
+ * 
+ * When other subsystems are integrated:
+ * 1. Replace stub services in RecruitmentModule with real implementations
+ * 2. The service will automatically use the real implementations via dependency injection
+ * 
+ * Integration points:
+ * - Onboarding: Triggered when offer is accepted (REC-029)
+ * - Employee Profile: Create employee from candidate when offer accepted
+ * - Organization Structure: Validate departments/positions
+ */
 @Injectable()
 export class RecruitmentService {
   private readonly logger = new Logger(RecruitmentService.name);
@@ -55,6 +68,9 @@ export class RecruitmentService {
     private referralModel: Model<Referral>,
     @InjectModel(Offer.name)
     private offerModel: Model<Offer>,
+    @Optional() @Inject('IOnboardingService') private onboardingService?: IOnboardingService,
+    @Optional() @Inject('IEmployeeProfileService') private employeeProfileService?: IEmployeeProfileService,
+    @Optional() @Inject('IOrganizationStructureService') private orgStructureService?: IOrganizationStructureService,
   ) {}
 
   // ==========================================
@@ -740,9 +756,86 @@ export class RecruitmentService {
   // ONBOARDING TRIGGER (REC-029)
   // ==========================================
   private async triggerOnboarding(offer: Offer): Promise<void> {
-    // TODO (Onboarding/EmployeeProfile): Send onboarding trigger to onboarding subsystem, pass Employee Profile & offer details
-    // TODO (Organization Structure): Cross-check org structure positions/jobs/department via Org Structure service or DB when integrated
     this.logger.log(`Onboarding triggered for candidate ${offer.candidateId} (BR26c)`);
+
+    // Get application details for onboarding
+    const application = await this.applicationModel.findById(offer.applicationId).exec();
+    if (!application) {
+      this.logger.warn(`Application ${offer.applicationId} not found for onboarding trigger`);
+      return;
+    }
+
+    // Get requisition details for department/role
+    const requisition = await this.jobRequisitionModel.findById(application.requisitionId).exec();
+    let department = 'Unknown';
+    let role = offer.role || 'Unknown';
+
+    // Get department and title from job template if available
+    if (requisition?.templateId) {
+      const template = await this.jobTemplateModel.findById(requisition.templateId).exec();
+      if (template) {
+        department = template.department || 'Unknown';
+        role = offer.role || template.title || 'Unknown';
+      }
+    }
+
+    // Validate department with organization structure (if available)
+    if (this.orgStructureService) {
+      const isValid = await this.orgStructureService.validateDepartment(department);
+      if (!isValid) {
+        this.logger.warn(`Department ${department} not found in organization structure`);
+      }
+    }
+
+    // Note: Candidate details (name, email) would come from Candidate collection
+    // which is not part of this module. In real integration, populate candidate or fetch from candidate service.
+    // For now, we'll use candidateId and let the employee profile service handle candidate lookup if needed.
+
+    // Create employee profile from candidate (if employee profile service available)
+    let employeeId: string | undefined;
+    if (this.employeeProfileService) {
+      try {
+        // In real implementation, candidate details would be fetched from Candidate collection
+        // For now, pass candidateId and let the service handle it
+        const result = await this.employeeProfileService.createEmployeeFromCandidate(
+          offer.candidateId.toString(),
+          {
+            fullName: 'Candidate', // TODO: Fetch from Candidate collection when integrated
+            email: 'candidate@example.com', // TODO: Fetch from Candidate collection when integrated
+            role: role,
+            department: department,
+            startDate: new Date(), // In real implementation, this would come from offer
+          },
+        );
+        employeeId = result.employeeId;
+        this.logger.log(`Employee profile created: ${employeeId}`);
+      } catch (error) {
+        this.logger.error(`Failed to create employee profile: ${error.message}`);
+      }
+    }
+
+    // Trigger onboarding workflow (if onboarding service available)
+    if (this.onboardingService) {
+      try {
+        const offerId = (offer as any)._id?.toString() || offer.candidateId.toString();
+        const onboardingResult = await this.onboardingService.triggerOnboarding(
+          offer.candidateId.toString(),
+          offerId,
+          {
+            role: role,
+            department: department,
+            grossSalary: offer.grossSalary,
+            startDate: new Date(), // In real implementation, this would come from offer
+          },
+        );
+        this.logger.log(`Onboarding workflow triggered: ${onboardingResult.onboardingId}`);
+        this.logger.log(`Onboarding tasks created: ${onboardingResult.tasks.length}`);
+      } catch (error) {
+        this.logger.error(`Failed to trigger onboarding: ${error.message}`);
+      }
+    } else {
+      this.logger.warn('Onboarding service not available - onboarding not triggered');
+    }
   }
 
   private groupByStatus(applications: Application[]): Record<string, number> {
