@@ -1,7 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../../app.module';
 import { getModelToken } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import type { Model } from 'mongoose';
+import { Types } from 'mongoose';
+
 
 import { JobTemplate, JobTemplateDocument } from '../models/job-template.schema';
 import { JobRequisition, JobRequisitionDocument } from '../models/job-requisition.schema';
