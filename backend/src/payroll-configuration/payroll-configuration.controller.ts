@@ -25,6 +25,11 @@ export class PayrollConfigurationController {
     private readonly payrollConfigurationService: PayrollConfigurationService,
   ) {}
 
+  @Post('insurance-brackets')
+  createInsuranceBracket(@Body() payload: CreateConfigurationDto) {
+    return this.payrollConfigurationService.createInsuranceBracket(payload);
+  }
+
   @Get('insurance-brackets')
   listInsuranceBrackets(@Query('status') status?: string) {
     const normalizedStatus = this.normalizeStatusFilter(status);
@@ -275,6 +280,31 @@ export class PayrollConfigurationController {
       configId,
       payload,
     );
+  }
+
+  // Tax Rules Configuration Endpoints
+  @Post('tax-rules')
+  createTaxRule(@Body() payload: CreateConfigurationDto) {
+    return this.payrollConfigurationService.createTaxRule(payload);
+  }
+
+  @Get('tax-rules')
+  listTaxRules(@Query('status') status?: string) {
+    const normalizedStatus = this.normalizeStatusFilter(status);
+    return this.payrollConfigurationService.listTaxRules(normalizedStatus);
+  }
+
+  @Get('tax-rules/:configId')
+  getTaxRule(@Param('configId') configId: string) {
+    return this.payrollConfigurationService.getTaxRule(configId);
+  }
+
+  @Patch('tax-rules/:configId')
+  updateTaxRule(
+    @Param('configId') configId: string,
+    @Body() { payload }: UpdateConfigurationDto,
+  ) {
+    return this.payrollConfigurationService.updateTaxRule(configId, payload);
   }
 
   private normalizeStatusFilter(

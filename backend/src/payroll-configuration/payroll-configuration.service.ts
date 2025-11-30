@@ -182,6 +182,15 @@ export class PayrollConfigurationService {
     return doc;
   }
 
+  async createInsuranceBracket(payload: Record<string, any>) {
+    const model = this.getModel('insuranceBrackets');
+    const newInsuranceBracket = new model({
+      ...payload,
+      status: ConfigStatus.DRAFT,
+    });
+    return (await newInsuranceBracket.save()).toObject();
+  }
+
   async updateInsuranceBracket(
     configId: string,
     payload: Record<string, any>,
@@ -196,9 +205,9 @@ export class PayrollConfigurationService {
     }
 
     const doc = await this.findInsuranceBracketOrThrow(configId);
-    if (doc.status === ConfigStatus.APPROVED) {
+    if (doc.status !== ConfigStatus.DRAFT) {
       throw new BadRequestException(
-        'Approved insurance brackets cannot be edited.',
+        `Insurance bracket can only be edited when status is ${ConfigStatus.DRAFT}`,
       );
     }
 
@@ -617,6 +626,47 @@ export class PayrollConfigurationService {
       throw new NotFoundException('No company-wide settings found');
     }
     return settings;
+  }
+
+  // Tax Rules Configuration
+  async createTaxRule(payload: Record<string, any>) {
+    const model = this.getModel('taxRules');
+    const newTaxRule = new model({
+      ...payload,
+      status: ConfigStatus.DRAFT,
+    });
+    return (await newTaxRule.save()).toObject();
+  }
+
+  async updateTaxRule(configId: string, payload: Record<string, any>) {
+    if (!payload || Object.keys(payload).length === 0) {
+      throw new BadRequestException('Update payload is required');
+    }
+
+    const sanitizedPayload = this.sanitizePayload(payload);
+    if (Object.keys(sanitizedPayload).length === 0) {
+      throw new BadRequestException('No editable fields provided');
+    }
+
+    return this.editConfiguration('taxRules', configId, sanitizedPayload);
+  }
+
+  async getTaxRule(configId: string) {
+    const model = this.getModel('taxRules');
+    const doc = await model.findById(configId).lean();
+    if (!doc) {
+      throw new NotFoundException(`Tax rule ${configId} not found`);
+    }
+    return doc;
+  }
+
+  async listTaxRules(status?: ConfigStatus) {
+    const model = this.getModel('taxRules');
+    const filter: Record<string, any> = {};
+    if (status) {
+      filter.status = status;
+    }
+    return model.find(filter).sort({ createdAt: -1 }).lean();
   }
 
   private getModel(collection: string): Model<any> {
