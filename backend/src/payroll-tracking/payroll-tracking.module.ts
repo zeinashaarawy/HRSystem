@@ -7,6 +7,9 @@ import { claims, claimsSchema } from './models/claims.schema';
 import { disputes, disputesSchema } from './models/disputes.schema';
 import { PayrollConfigurationModule } from '../payroll-configuration/payroll-configuration.module';
 import { PayrollExecutionModule } from '../payroll-execution/payroll-execution.module';
+import { paySlip, paySlipSchema } from '../payroll-execution/models/payslip.schema';
+import { payrollRuns, payrollRunsSchema } from '../payroll-execution/models/payrollRuns.schema';
+import { employeePayrollDetails, employeePayrollDetailsSchema } from '../payroll-execution/models/employeePayrollDetails.schema';
 
 @Module({
   
@@ -16,6 +19,9 @@ import { PayrollExecutionModule } from '../payroll-execution/payroll-execution.m
       { name: refunds.name, schema: refundsSchema },
       { name: claims.name, schema: claimsSchema },
       { name: disputes.name, schema: disputesSchema },
+      { name: paySlip.name, schema: paySlipSchema },
+      { name: payrollRuns.name, schema: payrollRunsSchema },
+      { name: employeePayrollDetails.name, schema: employeePayrollDetailsSchema },
     ])],
   controllers: [PayrollTrackingController],
   providers: [PayrollTrackingService],
