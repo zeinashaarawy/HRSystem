@@ -28,7 +28,7 @@ import { MongooseModule } from '@nestjs/mongoose';
     RecruitmentModule,
     // Add other subsystem modules here when ready
   ],
-  controllers: [AppController],
+  controllers: [],
   providers: [AppService],
 })
 export class AppModule {}
