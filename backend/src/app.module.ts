@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TimeManagementModule } from './time-management/time-management.module';
@@ -13,7 +14,24 @@ import { PayrollConfigurationModule } from './payroll-configuration/payroll-conf
 import { PayrollExecutionModule } from './payroll-execution/payroll-execution.module';
 
 @Module({
-  imports: [TimeManagementModule, RecruitmentModule, LeavesModule, PayrollExecutionModule, PayrollConfigurationModule, PayrollTrackingModule, EmployeeProfileModule, OrganizationStructureModule, PerformanceModule],
+  imports: [
+    MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/hr-system', {
+      retryWrites: true,
+      w: 'majority',
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 10000,
+    }),
+    TimeManagementModule, 
+    RecruitmentModule, 
+    LeavesModule, 
+    PayrollExecutionModule, 
+    PayrollConfigurationModule, 
+    PayrollTrackingModule, 
+    EmployeeProfileModule, 
+    OrganizationStructureModule, 
+    PerformanceModule
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
