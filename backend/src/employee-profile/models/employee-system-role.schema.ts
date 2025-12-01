@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import { SystemRole } from '../enums/employee-profile.enums';
+import { SystemRole } from '../../../../../backend/src/employee-profile/enums/employee-profile.enums';
 import { EmployeeProfile } from './employee-profile.schema';
 
 export type EmployeeSystemRoleDocument = HydratedDocument<EmployeeSystemRole>;

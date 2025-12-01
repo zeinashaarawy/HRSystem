@@ -4,7 +4,7 @@ import {
   ContractType,
   EmployeeStatus,
   WorkType,
-} from '../enums/employee-profile.enums';
+} from '../../../../../backend/src/employee-profile/enums/employee-profile.enums';
 import { AppraisalRatingScaleType } from '../../performance/enums/performance.enums';
 import { Department } from '../../organization-structure/models/department.schema';
 import { Position } from '../../organization-structure/models/position.schema';

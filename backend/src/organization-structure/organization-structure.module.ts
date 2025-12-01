@@ -4,6 +4,9 @@ import { OrganizationStructureController } from './organization-structure.contro
 import { OrganizationStructureService } from './organization-structure.service';
 import { Department, DepartmentSchema } from './models/department.schema';
 import { Position, PositionSchema } from './models/position.schema';
+import { HierarchyService } from './hierarchy/hierarchy.service'; 
+import { StructureValidation } from './utils/structure.validation'; 
+
 import {
   PositionAssignment,
   PositionAssignmentSchema,
@@ -28,14 +31,23 @@ import {
       { name: Position.name, schema: PositionSchema },
       { name: PositionAssignment.name, schema: PositionAssignmentSchema },
       { name: StructureApproval.name, schema: StructureApprovalSchema },
-      { name: StructureChangeLog.name, schema: StructureChangeLogSchema },
-      {
+      { name: StructureChangeLog.name, schema: StructureChangeLogSchema }
+      
+      ,{
         name: StructureChangeRequest.name,
         schema: StructureChangeRequestSchema,
       },
     ]),
   ],
   controllers: [OrganizationStructureController],
-  providers: [OrganizationStructureService],
+  providers: [OrganizationStructureService,
+      HierarchyService, 
+      StructureValidation,
+  ],
+
+exports: [
+    OrganizationStructureService,
+    HierarchyService, // optional but helpful
+  ],
 })
 export class OrganizationStructureModule {}
