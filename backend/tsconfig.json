@@ -21,10 +21,12 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "types": ["node", "jest"],
-    "baseUrl": "../",
-    "rootDir": "./src",
-    "moduleResolution": "nodenext"
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["backend/src/*"]
+    }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["backend/src/**/*", "**/*.ts"],
+  "exclude": ["node_modules", "dist"],
+  "rootDir": "."
 }
