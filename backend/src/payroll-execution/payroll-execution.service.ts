@@ -422,7 +422,9 @@ export class PayrollExecutionService {
       }
       query.status = filter.status;
     } else {
-      query.status = { $in: [BonusStatus.PENDING, BonusStatus.PAID] };
+      query.status = {
+        $in: [BonusStatus.PENDING, BonusStatus.APPROVED, BonusStatus.PAID],
+      };
     }
 
     if (filter.employeeId) {
