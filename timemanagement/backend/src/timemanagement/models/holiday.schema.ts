@@ -9,19 +9,10 @@ export class Holiday {
   name: string;
 
   @Prop({ required: true })
-  startDate: Date; // Start of holiday
+  date: Date;
 
-  @Prop({ required: true })
-  endDate: Date; // End of holiday (same as startDate if 1-day)
-
-  @Prop({
-    required: true,
-    enum: ['National', 'Organizational', 'WeeklyRestDay'],
-  })
-  type: string;
-
-  @Prop({ default: true })
-  isPaid: boolean; // Usually yes for national holidays
+  @Prop()
+  type: string; // National, Organizational, Weekly Rest Day
 }
 
 export const HolidaySchema = SchemaFactory.createForClass(Holiday);

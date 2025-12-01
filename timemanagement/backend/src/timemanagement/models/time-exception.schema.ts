@@ -1,39 +1,27 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document } from 'mongoose';
 
 export type TimeExceptionDocument = TimeException & Document;
 
 @Schema({ timestamps: true })
 export class TimeException {
-  @Prop({ type: Types.ObjectId, ref: 'Employee', required: true })
-  employee: Types.ObjectId;
+  @Prop({ required: true })
+  employeeId: string;
 
-  @Prop({
-    required: true,
-    enum: ['Correction', 'Overtime', 'Permission'],
-  })
-  type: string;
+  @Prop()
+  type: string; // e.g., "Correction", "Overtime", "Permission"
 
   @Prop({ required: true })
-  requestDate: Date; // when the request was submitted
+  requestDate: Date;
 
   @Prop()
-  targetDate: Date; // date the correction/permission/overtime applies to
-
-  @Prop({
-    enum: ['Pending', 'Approved', 'Rejected'],
-    default: 'Pending',
-  })
-  status: string;
-
-  @Prop({ type: Types.ObjectId, ref: 'Employee' })
-  resolvedBy: Types.ObjectId; // line manager or HR admin
+  status: string; // Pending, Approved, Rejected
 
   @Prop()
-  reason: string; // employee's reason
+  resolvedBy: string;
 
   @Prop()
-  notes: string; // HR/admin notes
+  notes: string;
 }
 
 export const TimeExceptionSchema = SchemaFactory.createForClass(TimeException);

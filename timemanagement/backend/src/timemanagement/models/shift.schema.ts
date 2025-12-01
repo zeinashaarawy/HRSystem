@@ -6,14 +6,7 @@ export type ShiftDocument = Shift & Document;
 @Schema({ timestamps: true })
 export class Shift {
   @Prop({ required: true })
-  name: string; // Normal Morning Shift, Overnight Shift, etc.
-
-  @Prop({
-    type: String,
-    enum: ['normal', 'split', 'overnight', 'rotational'],
-    default: 'normal',
-  })
-  type: string; // Required by MS1 (Shift Types)
+  name: string; // Normal, Split, Overnight, etc.
 
   @Prop()
   startTime: string; // e.g., "09:00"
@@ -21,11 +14,11 @@ export class Shift {
   @Prop()
   endTime: string; // e.g., "17:00"
 
-  @Prop()
-  pattern: string; // e.g., "4-on/3-off", flex rules
+  @Prop({ default: 'Active' })
+  status: string; // Approved, Cancelled, Expired
 
-  @Prop({ default: true })
-  isActive: boolean; // toggles shift availability
+  @Prop()
+  repeatPattern: string; // e.g., "4-on/3-off"
 }
 
 export const ShiftSchema = SchemaFactory.createForClass(Shift);
