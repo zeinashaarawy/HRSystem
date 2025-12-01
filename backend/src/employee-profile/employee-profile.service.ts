@@ -1,9 +1,3 @@
-<<<<<<< HEAD:backend/src/employee-profile/employee-profile.service.ts
-import { Injectable } from '@nestjs/common';
-
-@Injectable()
-export class EmployeeProfileService {}
-=======
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -486,4 +480,3 @@ async getMyProfile(userId: string) {
 
 
 }
->>>>>>> feature/employee-management:Employee-Profile-Organization-Structure-and-Performance--main/backend/src/employee-profile/employee-profile.service.ts

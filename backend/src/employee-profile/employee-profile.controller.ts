@@ -1,9 +1,3 @@
-<<<<<<< HEAD:backend/src/employee-profile/employee-profile.controller.ts
-import { Controller } from '@nestjs/common';
-
-@Controller('employee-profile')
-export class EmployeeProfileController {}
-=======
 import {
   Controller,
   Get,
@@ -250,4 +244,3 @@ resolveDispute(
 
 
 
->>>>>>> feature/employee-management:Employee-Profile-Organization-Structure-and-Performance--main/backend/src/employee-profile/employee-profile.controller.ts

@@ -1,19 +1,22 @@
 import { Schema, SchemaFactory, Prop } from "@nestjs/mongoose";
 import { Types } from "mongoose";
-import { HydratedDocument } from "mongoose";
-import { PunchType } from "./enums/index";
+import { HydratedDocument, Document } from "mongoose";
+import { PunchType } from "../../enums/index";
 
 export type Punch = {
     type: PunchType;
     time: Date;
 }
 
-export type AttendanceRecordDocument = HydratedDocument<AttendanceRecord>;
+export type AttendanceRecordDocument = HydratedDocument<AttendanceRecord> & Document;
 
 @Schema()
 export class AttendanceRecord{
     @Prop({type: Types.ObjectId, ref: 'EmployeeProfile', required: true})
     employeeId: Types.ObjectId;
+
+    @Prop({ type: Date, required: true, index: true })
+    recordDate: Date;
 
     @Prop({default: []})
     punches: Punch[];
