@@ -1,11 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { EmployeeProfile, EmployeeProfileDocument } from '../../../../Employee-Profile-Organization-Structure-and-Performance--main/backend/src/employee-profile/models/employee-profile.schema';
+import { EmployeeProfile, EmployeeProfileDocument } from '../models/employee-profile.schema';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { EmployeeStatus, SystemRole } from '../enums/employee-profile.enums';
-import { RegisterDto } from '../../../../Employee-Profile-Organization-Structure-and-Performance--main/backend/src/employee-profile/dto/register.dto';
+import { RegisterDto } from '../dto/register.dto';
 
 @Injectable()
 export class AuthService {

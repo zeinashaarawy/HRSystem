@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
-import { Gender, MaritalStatus } from '../../../../../backend/src/employee-profile/enums/employee-profile.enums';
+import { Gender, MaritalStatus } from '../enums/employee-profile.enums';
 import { EmployeeSystemRole } from './employee-system-role.schema';
 
 @Schema({ _id: false })

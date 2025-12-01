@@ -17,10 +17,10 @@ import { UpdateAppraisalRecordDto } from './dto/update-appraisal-record.dto';
 import { UpdateAppraisalStatusDto } from './dto/update-appraisal-status.dto';
 import { CreateDisputeDto } from './dto/create-dispute.dto';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
-import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
-import { RolesGuard } from 'src/common/guards/roles.guard';
-import { Roles } from 'src/common/decorators/roles.decorator';
-import { ADMIN_ROLES, EMPLOYEE_ROLES, HR_ROLES, MANAGER_ROLES } from 'src/common/constants/role-groups';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { ADMIN_ROLES, EMPLOYEE_ROLES, HR_ROLES, MANAGER_ROLES } from '../common/constants/role-groups';
 
 
 @Controller('performance')
