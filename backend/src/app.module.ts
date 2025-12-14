@@ -24,7 +24,7 @@ import { APP_GUARD } from '@nestjs/core';
     ConfigModule.forRoot({ isGlobal: true }),
 
     MongooseModule.forRoot(
-      process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/hr_system',
+      process.env.MONGO_URI || 'mongodb://localhost:27017/hr_system',
     ),
     
     AuthModule,
