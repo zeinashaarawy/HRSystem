@@ -1,7 +1,6 @@
 
-import { Prop, Schema, SchemaFactory, } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
-import {  EmployeeProfile as Employee} from '../../employee-profile/models/employee-profile.schema';
 import { PayRollPaymentStatus, PayRollStatus } from '../enums/payroll-execution-enum';
 
 
@@ -27,15 +26,16 @@ export class payrollRuns {
   totalnetpay: number;
 
   
-  @Prop({ required: true, type: mongoose.Schema.Types.ObjectId, ref: Employee.name })
+  // Reference Employee by collection name string so this module can run without the full employee-profile backend
+  @Prop({ required: true, type: mongoose.Schema.Types.ObjectId, ref: 'EmployeeProfile' })
   payrollSpecialistId: mongoose.Schema.Types.ObjectId;// createdBy
 
   @Prop({ required: true, type: String, enum: PayRollPaymentStatus, default: PayRollPaymentStatus.PENDING })
   paymentStatus: PayRollPaymentStatus;
 
-  @Prop({ required: false, type: mongoose.Schema.Types.ObjectId, ref: Employee.name })
+  @Prop({ required: false, type: mongoose.Schema.Types.ObjectId, ref: 'EmployeeProfile' })
   payrollManagerId?: mongoose.Schema.Types.ObjectId;
-  @Prop({ required: false, type: mongoose.Schema.Types.ObjectId, ref: Employee.name })
+  @Prop({ required: false, type: mongoose.Schema.Types.ObjectId, ref: 'EmployeeProfile' })
   financeStaffId?: mongoose.Schema.Types.ObjectId;
 
   @Prop()

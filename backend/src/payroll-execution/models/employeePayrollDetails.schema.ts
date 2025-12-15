@@ -1,7 +1,6 @@
 
-import { Prop, Schema, SchemaFactory, } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
-import {  EmployeeProfile as Employee} from '../../employee-profile/models/employee-profile.schema';
 import { payrollRuns } from './payrollRuns.schema';
 import { BankStatus } from '../enums/payroll-execution-enum';
 
@@ -10,7 +9,8 @@ export type employeePayrollDetailsDocument = HydratedDocument<employeePayrollDet
 
 @Schema({ timestamps: true })
 export class employeePayrollDetails {
-    @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Employee.name, required: true })
+    // Reference by collection name only – we don't depend on the full EmployeeProfile module in this standalone backend
+    @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'EmployeeProfile', required: true })
     employeeId: mongoose.Types.ObjectId;
     @Prop({ required: true })
     baseSalary: number;

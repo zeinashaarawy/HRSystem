@@ -1,9 +1,6 @@
 
-import { Prop, Schema, SchemaFactory, } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
-import { terminationAndResignationBenefits } from '../../payroll-configuration/models/terminationAndResignationBenefits';
-import {  EmployeeProfile as Employee} from '../../employee-profile/models/employee-profile.schema';
-import {  TerminationRequest } from '../../recruitment/models/termination-request.schema';
 import { BenefitStatus } from '../enums/payroll-execution-enum';
 
 export type EmployeeTerminationResignationDocument = HydratedDocument<EmployeeTerminationResignation>
@@ -11,15 +8,16 @@ export type EmployeeTerminationResignationDocument = HydratedDocument<EmployeeTe
 
 @Schema({ timestamps: true })
 export class EmployeeTerminationResignation {
-    @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Employee.name, required: true })
+    // Reference by collection names to avoid depending on external modules
+    @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'EmployeeProfile', required: true })
     employeeId: mongoose.Types.ObjectId;
-    @Prop({ type: mongoose.Schema.Types.ObjectId, ref: terminationAndResignationBenefits.name, required: true })
+    @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'TerminationBenefit', required: true })
     benefitId: mongoose.Types.ObjectId;
 
     @Prop({required: true})
     givenAmount:number; // for sake of editing Benefits amount manually given to this employee
     
-    @Prop({ type: mongoose.Schema.Types.ObjectId, ref: TerminationRequest.name, required: true })
+    @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'TerminationRequest', required: true })
     terminationId: mongoose.Types.ObjectId;
     @Prop({ default: BenefitStatus.PENDING, type: String, enum: BenefitStatus })
     status: BenefitStatus; // pending, paid, approved ,rejected

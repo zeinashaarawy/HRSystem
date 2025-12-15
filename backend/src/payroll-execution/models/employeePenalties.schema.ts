@@ -1,6 +1,5 @@
-import { Prop, Schema, SchemaFactory, } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
-import {  EmployeeProfile as Employee} from '../../employee-profile/models/employee-profile.schema';
 
 
 export type penaltyDocument = HydratedDocument<penalty>
@@ -19,7 +18,8 @@ export type employeePenaltiesDocument = HydratedDocument<employeePenalties>
 
 @Schema({ timestamps: true })
 export class employeePenalties {
-    @Prop({ required: true, type: mongoose.Schema.Types.ObjectId, ref: Employee.name})
+    // Reference Employee by collection name string to avoid depending on the full employee-profile module
+    @Prop({ required: true, type: mongoose.Schema.Types.ObjectId, ref: 'EmployeeProfile'})
     employeeId: mongoose.Types.ObjectId;
     @Prop({ type: [penaltySchema] })
     penalties?: penalty[]

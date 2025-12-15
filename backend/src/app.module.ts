@@ -15,6 +15,7 @@ import { PayrollExecutionModule } from './payroll-execution/payroll-execution.mo
 
 @Module({
   imports: [
+    // Standalone payroll-execution backend – connect only to MongoDB and this module
     MongooseModule.forRoot(
       process.env.MONGO_URI ??
         'mongodb+srv://user:mdp067QvT0Tnb5WR@hr-system-cluster.xagcoyo.mongodb.net/hrsystem?retryWrites=true&w=majority',
