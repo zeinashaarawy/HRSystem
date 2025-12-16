@@ -10,26 +10,29 @@ import { EmployeeProfileModule } from './employee-profile/employee-profile.modul
 import { PerformanceModule } from './performance/performance.module';
 import { PayrollConfigurationModule } from './payroll-configuration/payroll-configuration.module';
 import { PayrollExecutionModule } from './payroll-execution/payroll-execution.module';
-
 import { OrganizationStructureModule } from './organization-structure/organization-structure.module';
 
 import { MongooseModule } from '@nestjs/mongoose';
-import { ConfigModule } from '@nestjs/config';
-
-import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
   imports: [
-    
+    // Load environment variables globally
     ConfigModule.forRoot({ isGlobal: true }),
 
-    MongooseModule.forRoot(
-      process.env.MONGO_URI || 'mongodb://localhost:27017/hr_system',
-    ),
-    
-    AuthModule,
+    // Connect to MongoDB (Atlas preferred)
+    MongooseModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const mongoUri = configService.get<string>('MONGO_URI') || 'mongodb://localhost:27017/hr_system';
+        return {
+          uri: mongoUri,
+        };
+      },
+    }),
 
-    // Load everything else first
+    AuthModule,
     TimeManagementModule,
     RecruitmentModule,
     LeavesModule,
@@ -38,14 +41,9 @@ import { APP_GUARD } from '@nestjs/core';
     PayrollTrackingModule,
     EmployeeProfileModule,
     PerformanceModule,
-
-    // Load OrganizationStructureModule LAST
-    // so that Department schema is guaranteed to be registered
-    OrganizationStructureModule,
+    OrganizationStructureModule, // last
   ],
   controllers: [AppController],
-  providers: [
-    
-    AppService],
+  providers: [AppService],
 })
 export class AppModule {}
