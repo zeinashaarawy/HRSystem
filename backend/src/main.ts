@@ -1,15 +1,30 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Allow the Next.js frontend (running on a different port) to call this API
+  // ✅ ENABLE CORS FOR FRONTEND
   app.enableCors({
-    origin: true, // reflect request origin
-    credentials: false,
+    origin: '*', // Next.js frontend
+    credentials: true,
   });
 
-  await app.listen(process.env.PORT ?? 3000);
+  // ✅ SWAGGER SETUP
+  const config = new DocumentBuilder()
+    .setTitle('Employee Profile API')
+    .setDescription('API documentation')
+    .setVersion('1.0')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
+
+  // ✅ START SERVER
+  await app.listen(process.env.PORT || 3000);
+
+  console.log(`🚀 Backend running on http://localhost:${process.env.PORT || 3000}`);
 }
+
 bootstrap();
