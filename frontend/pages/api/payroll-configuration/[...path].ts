@@ -3,7 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 const BACKEND_BASE_URL =
   process.env.BACKEND_URL ||
   process.env.NEXT_PUBLIC_BACKEND_URL ||
-  'http://localhost:3001';
+  'http://localhost:3000';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
