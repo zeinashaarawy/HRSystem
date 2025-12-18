@@ -13,11 +13,13 @@ import { PayrollExecutionModule } from './payroll-execution/payroll-execution.mo
 
 import { OrganizationStructureModule } from './organization-structure/organization-structure.module';
 
+
+
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 
 import { APP_GUARD } from '@nestjs/core';
-
+import { JwtModule } from '@nestjs/jwt';
 @Module({
   imports: [
     
@@ -42,6 +44,11 @@ import { APP_GUARD } from '@nestjs/core';
     // Load OrganizationStructureModule LAST
     // so that Department schema is guaranteed to be registered
     OrganizationStructureModule,
+    JwtModule.register({
+      global: true,
+      secret: process.env.JWT_SECRET || 'super-secret-key',
+      signOptions: { expiresIn: '7d' },
+    }),
   ],
   controllers: [AppController],
   providers: [

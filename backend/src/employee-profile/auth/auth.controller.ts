@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Param, UseGuards, Req, UnauthorizedException } from '@nestjs/common';
+import { Controller, Put ,Post, Get, Body, Param, UseGuards, Req, UnauthorizedException } from '@nestjs/common';
 
 import { AuthService } from './auth.service';
 import { SystemRole } from '../enums/employee-profile.enums';
@@ -12,7 +12,7 @@ import { RegisterDto } from '../dto/register.dto';
 
 
 @Controller('auth')
-export class EmployeeProfileController {
+export class AuthController {
   constructor(
     private readonly authService: AuthService,
     
@@ -26,6 +26,14 @@ export class EmployeeProfileController {
 
 register(@Body() dto: RegisterDto) {
   return this.authService.register(dto);
+}
+@Put(':id/roles')
+@Roles( ...ADMIN_ROLES)
+async updateRoles(
+  @Param('id') id: string,
+  @Body('roles') roles: string[],
+) {
+  return this.authService.updateUserRoles(id, roles);
 }
 
 
