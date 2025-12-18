@@ -37,6 +37,7 @@ type Payslip = any;
 const BONUS_STATUSES = ["pending", "approved", "paid", "rejected"] as const;
 const BENEFIT_STATUSES = ["pending", "approved", "paid", "rejected"] as const;
 
+// Convert month input (YYYY-MM) to local ISO datetime (end of month)
 function monthToLocalDateTime(month: string): string | undefined {
   // input type="month" yields YYYY-MM
   if (!month) return undefined;
@@ -57,12 +58,14 @@ function formatMaybeDate(value: any): string {
   return d.toLocaleDateString();
 }
 
+// Normalize API response to an array (supports direct arrays or { items: [] })
 function normalizeArrayResponse<T = any>(data: any): T[] {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.items)) return data.items;
   return [];
 }
 
+// Small alert component for error / success / info messages
 function PageAlert({
   kind,
   title,
@@ -106,6 +109,7 @@ function PageAlert({
   );
 }
 
+// Reusable card wrapper used across the page
 function Card({
   title,
   subtitle,
@@ -237,6 +241,7 @@ export default function PayrollExecution() {
     }
   }, [selectedPayrollRunId]);
 
+  // Fetch payroll runs for review with current filters
   async function loadPayrollRuns() {
     setLoading(true);
     setError(null);
@@ -644,6 +649,7 @@ export default function PayrollExecution() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Main UI layout and tabs
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white px-4 py-8 lg:px-8 lg:py-12">
       <div className="max-w-7xl mx-auto space-y-6">
