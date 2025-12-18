@@ -24,15 +24,25 @@ export class PayrollExecutionController {
   }
 
   @Get('signing-bonuses/processed')
-  getProcessedSigningBonuses(
+  async getProcessedSigningBonuses(
     @Query('employeeId') employeeId?: string,
     @Query('status') status?: string,
   ) {
-    const normalizedStatus = this.parseStatusQuery(status);
-    return this.payrollExecutionService.getProcessedSigningBonuses({
-      employeeId,
-      status: normalizedStatus,
-    });
+    try {
+      console.log('Fetching signing bonuses with params:', { employeeId, status });
+
+      const normalizedStatus = this.parseStatusQuery(status);
+      const result = await this.payrollExecutionService.getProcessedSigningBonuses({
+        employeeId,
+        status: normalizedStatus,
+      });
+
+      console.log('Found signing bonuses:', result.length);
+      return result;
+    } catch (error) {
+      console.error('Error in getProcessedSigningBonuses:', error);
+      throw error;
+    }
   }
 
   @Post('signing-bonuses/:id/approve')

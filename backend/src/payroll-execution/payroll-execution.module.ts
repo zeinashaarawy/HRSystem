@@ -8,6 +8,8 @@ import { employeeSigningBonus, employeeSigningBonusSchema } from './models/Emplo
 import { EmployeeTerminationResignation, EmployeeTerminationResignationSchema } from './models/EmployeeTerminationResignation.schema';
 import { payrollRuns, payrollRunsSchema } from './models/payrollRuns.schema';
 import { paySlip, paySlipSchema } from './models/payslip.schema';
+import { signingBonus, signingBonusSchema } from '../payroll-configuration/models/signingBonus.schema';
+import { terminationAndResignationBenefits, terminationAndResignationBenefitsSchema } from '../payroll-configuration/models/terminationAndResignationBenefits';
 
 @Module({
   imports: [
@@ -18,10 +20,12 @@ import { paySlip, paySlipSchema } from './models/payslip.schema';
       { name: employeeSigningBonus.name, schema: employeeSigningBonusSchema },
       { name: EmployeeTerminationResignation.name, schema: EmployeeTerminationResignationSchema },
       { name: employeePenalties.name, schema: employeePenaltiesSchema },
+      { name: signingBonus.name, schema: signingBonusSchema },
+      { name: terminationAndResignationBenefits.name, schema: terminationAndResignationBenefitsSchema },
     ]),
   ],
   controllers: [PayrollExecutionController],
   providers: [PayrollExecutionService],
   exports: [PayrollExecutionService],
 })
-export class PayrollExecutionModule {}
+export class PayrollExecutionModule { }

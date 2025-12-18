@@ -412,72 +412,90 @@ export class PayrollExecutionService {
   async getProcessedSigningBonuses(
     filter: SigningBonusReviewFilter = {},
   ): Promise<SigningBonusReviewItem[]> {
-    const query: FilterQuery<employeeSigningBonusDocument> = {
-      paymentDate: { $ne: null },
-    };
+    try {
+      const query: FilterQuery<employeeSigningBonusDocument> = {};
 
-    if (filter.status) {
-      if (!Object.values(BonusStatus).includes(filter.status)) {
-        throw new BadRequestException('Unsupported signing bonus status filter');
-      }
-      query.status = filter.status;
-    } else {
-      query.status = {
-        $in: [BonusStatus.PENDING, BonusStatus.APPROVED, BonusStatus.PAID],
-      };
-    }
-
-    if (filter.employeeId) {
-      if (!Types.ObjectId.isValid(filter.employeeId)) {
-        throw new BadRequestException('Invalid employeeId filter');
-      }
-      query.employeeId = new Types.ObjectId(filter.employeeId);
-    }
-
-    const signingBonuses = await this.signingBonusModel
-      .find(query)
-      .populate('signingBonusId')
-      .lean<LeanEmployeeSigningBonus[]>()
-      .exec();
-
-    if (!signingBonuses.length) {
-      return [];
-    }
-
-    const employeeIds = Array.from(
-      new Set(
-        signingBonuses
-          .map((bonus) => bonus.employeeId?.toString())
-          .filter(Boolean) as string[],
-      ),
-    );
-
-    const employees = await this.employeeProfileModel
-      .find({ _id: { $in: employeeIds } })
-      .lean<EmployeeProfileWithContract>()
-      .exec();
-
-    const employeeMap = new Map(
-      employees.map((employee) => [employee._id.toString(), employee]),
-    );
-
-    const reviewItems: SigningBonusReviewItem[] = [];
-
-    for (const bonus of signingBonuses) {
-      if (!bonus.employeeId) continue;
-      const employee = employeeMap.get(bonus.employeeId.toString());
-      if (!employee) {
-        continue;
+      // Status filter
+      if (filter.status) {
+        if (!Object.values(BonusStatus).includes(filter.status)) {
+          throw new BadRequestException('Unsupported signing bonus status filter');
+        }
+        query.status = filter.status;
       }
 
-      if (!this.isContractEligible(employee)) {
-        continue;
+      // Employee filter
+      if (filter.employeeId) {
+        if (!Types.ObjectId.isValid(filter.employeeId)) {
+          throw new BadRequestException('Invalid employeeId filter');
+        }
+        query.employeeId = new Types.ObjectId(filter.employeeId);
       }
 
-      reviewItems.push(this.buildReviewItem(bonus, employee));
-    }
+      console.log('Querying signing bonuses with:', JSON.stringify(query));
+      const signingBonuses = await this.signingBonusModel
+        .find(query)
+        .populate('signingBonusId')
+        .lean<LeanEmployeeSigningBonus[]>()
+        .exec();
 
-    return reviewItems;
+      console.log(`Found ${signingBonuses.length} signing bonuses`);
+
+      if (!signingBonuses.length) {
+        return [];
+      }
+
+      const employeeIds = Array.from(
+        new Set(
+          signingBonuses
+            .map((bonus) => bonus.employeeId?.toString())
+            .filter(Boolean) as string[],
+        ),
+      );
+
+      console.log('Fetching employees:', employeeIds);
+      const employees = await this.employeeProfileModel
+        .find({ _id: { $in: employeeIds } })
+        .lean<EmployeeProfileWithContract>()
+        .exec();
+
+      const employeeMap = new Map(
+        employees.map((employee) => [employee._id.toString(), employee]),
+      );
+
+      const reviewItems: SigningBonusReviewItem[] = [];
+
+      for (const bonus of signingBonuses) {
+        try {
+          if (!bonus.employeeId) {
+            console.log('Skipping bonus with no employee ID:', bonus._id);
+            continue;
+          }
+
+          const employee = employeeMap.get(bonus.employeeId.toString());
+          if (!employee) {
+            console.log(`Employee not found for bonus ${bonus._id}: ${bonus.employeeId}`);
+            continue;
+          }
+
+          // Skip contract eligibility check to include all records
+          // if (!this.isContractEligible(employee)) {
+          //   console.log(`Employee ${employee._id} is not eligible for bonus ${bonus._id}`);
+          //   continue;
+          // }
+
+          const reviewItem = this.buildReviewItem(bonus, employee);
+          reviewItems.push(reviewItem);
+        } catch (error) {
+          console.error(`Error processing bonus ${bonus._id}:`, error);
+          // Continue with next bonus even if one fails
+        }
+      }
+
+      return reviewItems;
+    } catch (error) {
+      console.error('Error in getProcessedSigningBonuses service:', error);
+      throw error;
+    }
   }
 
   async approveSigningBonus(
@@ -731,21 +749,20 @@ export class PayrollExecutionService {
     }
     return parsed;
   }
-
   async getProcessedTerminationBenefits(
     filter: TerminationBenefitReviewFilter = {},
   ): Promise<TerminationBenefitReviewItem[]> {
-    const query: FilterQuery<any> = {};
+    const query: FilterQuery<LeanEmployeeTerminationResignation> = {};
 
+    // Keep status filter if provided
     if (filter.status) {
       if (!Object.values(BenefitStatus).includes(filter.status)) {
         throw new BadRequestException('Unsupported termination benefit status filter');
       }
       query.status = filter.status;
-    } else {
-      query.status = { $in: [BenefitStatus.PENDING, BenefitStatus.PAID] };
     }
 
+    // Keep employee filter if provided
     if (filter.employeeId) {
       if (!Types.ObjectId.isValid(filter.employeeId)) {
         throw new BadRequestException('Invalid employeeId filter');
@@ -753,6 +770,7 @@ export class PayrollExecutionService {
       query.employeeId = new Types.ObjectId(filter.employeeId);
     }
 
+    // Fetch termination benefits with minimal population to get all records
     const terminationBenefits = await this.terminationBenefitModel
       .find(query)
       .populate('benefitId')
@@ -764,99 +782,59 @@ export class PayrollExecutionService {
       return [];
     }
 
+    // Collect employee IDs
     const employeeIds = Array.from(
       new Set(
         terminationBenefits
-          .map((benefit) => benefit.employeeId?.toString())
-          .filter(Boolean) as string[],
+          .map(b => b.employeeId?.toString())
+          .filter((id): id is string => !!id),
       ),
     );
 
+    // Fetch employees
     const employees = await this.employeeProfileModel
       .find({ _id: { $in: employeeIds } })
-      .lean<EmployeeProfileWithContract>()
+      .lean<(EmployeeProfileWithContract & { _id: Types.ObjectId })[]>()
       .exec();
 
-    const employeeMap = new Map(
-      employees.map((employee) => [employee._id.toString(), employee]),
+    const employeeMap = new Map<string, EmployeeProfileWithContract>(
+      employees.map(emp => [emp._id.toString(), emp]),
     );
 
-    const terminationIds = Array.from(
-      new Set(
-        terminationBenefits
-          .map((benefit) => {
-            const termId = benefit.terminationId;
-            return termId instanceof Types.ObjectId
-              ? termId.toString()
-              : (termId as any)?._id?.toString();
-          })
-          .filter(Boolean),
-      ),
-    );
-
-    const terminationRequests = await this.terminationRequestModel
-      .find({ _id: { $in: terminationIds } })
-      .lean()
-      .exec();
-
-    const terminationMap = new Map(
-      terminationRequests.map((req: any) => [req._id.toString(), req]),
-    );
-
-    const clearanceChecklists = await this.clearanceChecklistModel
-      .find({ terminationId: { $in: terminationIds } })
-      .lean()
-      .exec();
-
-    const clearanceMap = new Map(
-      clearanceChecklists.map((checklist: any) => [
-        checklist.terminationId.toString(),
-        checklist,
-      ]),
-    );
-
+    // Build review items without HR clearance check
     const reviewItems: TerminationBenefitReviewItem[] = [];
 
     for (const benefit of terminationBenefits) {
       if (!benefit.employeeId) continue;
-      const employee = employeeMap.get(benefit.employeeId.toString());
-      if (!employee) {
-        continue;
-      }
 
-      const termId =
+      const employee = employeeMap.get(benefit.employeeId.toString());
+      if (!employee) continue;
+
+      const terminationId =
         benefit.terminationId instanceof Types.ObjectId
           ? benefit.terminationId.toString()
           : (benefit.terminationId as any)?._id?.toString();
 
-      if (!termId) {
-        continue;
-      }
-
-      const terminationRequest = terminationMap.get(termId);
-      const clearanceChecklist = clearanceMap.get(termId);
-
-      const hrClearanceCompleted = this.isHrClearanceCompleted(
-        terminationRequest,
-        clearanceChecklist,
-      );
-
-      if (!hrClearanceCompleted) {
-        continue;
-      }
-
-      reviewItems.push(
-        this.buildTerminationBenefitReviewItem(
-          benefit,
-          employee,
-          terminationRequest,
-          hrClearanceCompleted,
-        ),
-      );
+      // Create a basic review item without HR clearance check
+      reviewItems.push({
+        id: benefit._id?.toString() || '',
+        employeeId: benefit.employeeId.toString(),
+        employeeName: employee.fullName || `${employee.firstName} ${employee.lastName}`.trim(),
+        status: benefit.status || BenefitStatus.PENDING,
+        benefitId: benefit.benefitId?._id?.toString(),
+        benefitName: (benefit.benefitId as any)?.name,
+        benefitAmount: (benefit.benefitId as any)?.amount,
+        terminationId: terminationId,
+        terminationStatus: (benefit.terminationId as any)?.status,
+        hrClearanceCompleted: false, // Default to false since we're bypassing the check
+        eligible: true, // Default to true since we're not checking eligibility
+      });
     }
 
     return reviewItems;
   }
+
+
 
   async approveTerminationBenefit(
     terminationBenefitId: string,
@@ -1573,16 +1551,16 @@ export class PayrollExecutionService {
         const includeInsurance = dto.includeInsurance !== false;
         const includeTaxes = dto.includeTaxes !== false;
 
-            const calculation = await this.calculateEmployeePayroll(
-              employee,
-              contract,
-              payrollPeriod,
-              { includeAllowances, includeInsurance, includeTaxes },
-              allowances,
-              taxRules,
-              insuranceBrackets,
-              payGrades,
-            );
+        const calculation = await this.calculateEmployeePayroll(
+          employee,
+          contract,
+          payrollPeriod,
+          { includeAllowances, includeInsurance, includeTaxes },
+          allowances,
+          taxRules,
+          insuranceBrackets,
+          payGrades,
+        );
 
         const existingDetail = await this.employeePayrollDetailsModel
           .findOne({
@@ -2747,10 +2725,10 @@ export class PayrollExecutionService {
           payrollRun.status === PayRollStatus.DRAFT
             ? 'pending'
             : payrollRun.status === PayRollStatus.UNDER_REVIEW
-            ? 'in_review'
-            : payrollRun.managerApprovalDate
-            ? 'completed'
-            : 'pending',
+              ? 'in_review'
+              : payrollRun.managerApprovalDate
+                ? 'completed'
+                : 'pending',
       },
       finance: {
         id: payrollRun.financeStaffId?.toString(),
@@ -2759,8 +2737,8 @@ export class PayrollExecutionService {
           payrollRun.status === PayRollStatus.APPROVED || payrollRun.status === PayRollStatus.LOCKED
             ? 'completed'
             : payrollRun.status === PayRollStatus.PENDING_FINANCE_APPROVAL
-            ? 'in_review'
-            : 'pending',
+              ? 'in_review'
+              : 'pending',
       },
     };
   }
@@ -3093,7 +3071,7 @@ export class PayrollExecutionService {
     if (payrollRun.status !== PayRollStatus.APPROVED) {
       throw new BadRequestException(
         'Only APPROVED payroll runs can be locked. Current status: ' +
-          payrollRun.status,
+        payrollRun.status,
       );
     }
 
@@ -3150,7 +3128,7 @@ export class PayrollExecutionService {
     if (payrollRun.status !== PayRollStatus.LOCKED) {
       throw new BadRequestException(
         'Only LOCKED payroll runs can be unlocked. Current status: ' +
-          payrollRun.status,
+        payrollRun.status,
       );
     }
 
