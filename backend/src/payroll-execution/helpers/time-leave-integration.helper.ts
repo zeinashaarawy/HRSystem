@@ -1,13 +1,4 @@
-/**
- * Time Management and Leave Integration Helper
- *
- * This helper provides integration points for Time Management and Leave subsystems.
- * These methods should be implemented when those subsystems are ready.
- *
- * Required Inputs from Other Sub-Systems:
- * - Time Management: Working hours, Overtime hours
- * - Leaves: Paid leave days, Unpaid leave days
- */
+/** Helper: integrate Time Management and Leave data for payroll. */
 
 import { Types } from 'mongoose';
 
@@ -32,20 +23,12 @@ export interface LeaveData {
 }
 
 export class TimeLeaveIntegrationHelper {
-  /**
-   * Fetch time management data for an employee in a payroll period
-   * TODO: Implement integration with Time Management subsystem
-   *
-   * @param employeeId - Employee ObjectId
-   * @param payrollPeriod - Payroll period date
-   * @returns Time management data including working hours and overtime
-   */
+  /** Get time management data for an employee. TODO: integrate with Time subsystem. */
   static async getTimeManagementData(
     employeeId: Types.ObjectId,
     payrollPeriod: Date,
   ): Promise<TimeManagementData> {
-    // Placeholder implementation
-    // In production, this should call the Time Management subsystem API
+    // Placeholder: replace with actual Time Management API call
     return {
       employeeId,
       payrollPeriod,
@@ -57,20 +40,12 @@ export class TimeLeaveIntegrationHelper {
     };
   }
 
-  /**
-   * Fetch leave data for an employee in a payroll period
-   * TODO: Implement integration with Leave Management subsystem
-   *
-   * @param employeeId - Employee ObjectId
-   * @param payrollPeriod - Payroll period date
-   * @returns Leave data including paid/unpaid leave days
-   */
+  /** Get leave data for an employee. TODO: integrate with Leave subsystem. */
   static async getLeaveData(
     employeeId: Types.ObjectId,
     payrollPeriod: Date,
   ): Promise<LeaveData> {
-    // Placeholder implementation
-    // In production, this should call the Leave Management subsystem API
+    // Placeholder: replace with actual Leave Management API call
     return {
       employeeId,
       payrollPeriod,
@@ -82,16 +57,7 @@ export class TimeLeaveIntegrationHelper {
     };
   }
 
-  /**
-   * Calculate deduction for missing working hours/days
-   * Egyptian Labor Law 2025: Deduction based on daily or hourly rate
-   *
-   * @param missingHours - Number of missing working hours
-   * @param grossSalary - Employee's gross monthly salary
-   * @param workingHoursPerDay - Standard working hours per day (default: 8)
-   * @param workingDaysPerMonth - Standard working days per month (default: 30)
-   * @returns Deduction amount
-   */
+  /** Calculate deduction for missing hours. Uses hourlyRate = gross / days / hours. */
   static calculateMissingHoursDeduction(
     missingHours: number,
     grossSalary: number,
@@ -109,14 +75,7 @@ export class TimeLeaveIntegrationHelper {
     return Math.round(deduction * 100) / 100;
   }
 
-  /**
-   * Calculate deduction for unpaid leave days
-   * Egyptian Labor Law 2025: Daily rate = Monthly salary / 30 days
-   *
-   * @param unpaidLeaveDays - Number of unpaid leave days
-   * @param grossSalary - Employee's gross monthly salary
-   * @returns Deduction amount
-   */
+  /** Calculate deduction for unpaid leave days (daily rate = gross / 30). */
   static calculateUnpaidLeaveDeduction(
     unpaidLeaveDays: number,
     grossSalary: number,
@@ -132,16 +91,7 @@ export class TimeLeaveIntegrationHelper {
     return Math.round(deduction * 100) / 100;
   }
 
-  /**
-   * Calculate overtime pay
-   * Egyptian Labor Law 2025: Overtime = 1.25x for first 2 hours, 1.5x thereafter
-   *
-   * @param overtimeHours - Number of overtime hours
-   * @param grossSalary - Employee's gross monthly salary
-   * @param workingHoursPerDay - Standard working hours per day (default: 8)
-   * @param workingDaysPerMonth - Standard working days per month (default: 30)
-   * @returns Overtime pay amount
-   */
+  /** Calculate overtime pay. First 2h at 1.25x, remaining at 1.5x. */
   static calculateOvertimePay(
     overtimeHours: number,
     grossSalary: number,
@@ -167,15 +117,7 @@ export class TimeLeaveIntegrationHelper {
     return Math.round(overtimePay * 100) / 100;
   }
 
-  /**
-   * Validate that employee has sufficient working hours/days
-   * Egyptian Labor Law 2025: Minimum attendance requirements
-   *
-   * @param workingDays - Actual working days
-   * @param requiredDays - Required working days in period
-   * @param attendanceRate - Attendance rate percentage
-   * @returns Validation result with reason
-   */
+  /** Validate attendance against minimum thresholds. */
   static validateAttendance(
     workingDays: number,
     requiredDays: number,
@@ -201,15 +143,7 @@ export class TimeLeaveIntegrationHelper {
     return { valid: true };
   }
 
-  /**
-   * Calculate prorated salary based on actual working days
-   * Used for mid-month hires, terminations, or extended unpaid leaves
-   *
-   * @param baseSalary - Employee's base monthly salary
-   * @param workedDays - Actual days worked in the period
-   * @param totalDaysInPeriod - Total days in the payroll period
-   * @returns Prorated salary amount
-   */
+  /** Calculate prorated salary based on days worked. */
   static calculateProratedSalary(
     baseSalary: number,
     workedDays: number,

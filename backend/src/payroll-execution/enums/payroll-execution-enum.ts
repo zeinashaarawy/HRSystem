@@ -5,7 +5,7 @@ export enum BankStatus {
 export enum BonusStatus{
     PENDING='pending',
     PAID='paid',
-    APPROVED='approved',
+    APPROVED='Approved',
     REJECTED='rejected'
 }
 export enum BenefitStatus {
@@ -25,7 +25,7 @@ export enum PayRollStatus {
   UNLOCKED = 'unlocked'
 }
 export enum PayRollPaymentStatus {
-  PAID = 'paid', // when finace approved 
+  PAID = 'Paid', // when finace approved 
   PENDING = 'pending'
 }
 export enum PaySlipPaymentStatus {
