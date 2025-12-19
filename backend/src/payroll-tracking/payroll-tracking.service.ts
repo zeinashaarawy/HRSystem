@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Types } from 'mongoose';
@@ -45,11 +45,11 @@ export class PayrollTrackingService {
 
     @InjectModel(employeePayrollDetails.name)
     private readonly employeePayrollDetailsModel: Model<employeePayrollDetailsDocument>,
-  ) {}
+  ) { }
 
-  
+
   // HEALTH CHECK
-  
+
   getHealth() {
     return {
       subsystem: 'payroll-tracking',
@@ -58,9 +58,9 @@ export class PayrollTrackingService {
     };
   }
 
-  
+
   // CLAIMS
-  
+
   async createClaim(dto: CreateClaimDto): Promise<claims> {
     // basic sanity: prevent duplicate claimId
     const existing = await this.claimModel.findOne({ claimId: dto.claimId }).lean();
@@ -95,9 +95,18 @@ export class PayrollTrackingService {
   }
 
   async updateClaimStatus(id: string, dto: UpdateClaimStatusDto): Promise<claims> {
-    const claim = await this.claimModel.findById(id);
+    let claim;
+    if (Types.ObjectId.isValid(id)) {
+      claim = await this.claimModel.findById(id);
+    }
+
     if (!claim) {
-      throw new Error('Claim not found');
+      // Try finding by functional ID
+      claim = await this.claimModel.findOne({ claimId: id });
+    }
+
+    if (!claim) {
+      throw new NotFoundException('Claim not found');
     }
 
     claim.status = dto.status;
@@ -118,17 +127,24 @@ export class PayrollTrackingService {
     return claim;
   }
 
- 
+
   // DISPUTES
-  
+
   async createDispute(dto: CreateDisputeDto): Promise<disputes> {
     const existing = await this.disputeModel.findOne({ disputeId: dto.disputeId }).lean();
     if (existing) throw new Error(`Dispute with id ${dto.disputeId} already exists`);
 
+    let payslipIdObj;
+    try {
+      payslipIdObj = new Types.ObjectId(dto.payslipId);
+    } catch (e) {
+      throw new Error(`Invalid Payslip ID format: ${dto.payslipId}`);
+    }
+
     const created = await this.disputeModel.create({
       ...dto,
       employeeId: new Types.ObjectId(dto.employeeId),
-      payslipId: new Types.ObjectId(dto.payslipId),
+      payslipId: payslipIdObj,
       financeStaffId: dto.financeStaffId ? new Types.ObjectId(dto.financeStaffId) : undefined,
       status: DisputeStatus.UNDER_REVIEW,
     });
@@ -149,8 +165,16 @@ export class PayrollTrackingService {
   }
 
   async updateDisputeStatus(id: string, dto: UpdateDisputeStatusDto): Promise<disputes> {
-    const dispute = await this.disputeModel.findById(id);
-    if (!dispute) throw new Error('Dispute not found');
+    let dispute;
+    if (Types.ObjectId.isValid(id)) {
+      dispute = await this.disputeModel.findById(id);
+    }
+
+    if (!dispute) {
+      dispute = await this.disputeModel.findOne({ disputeId: id });
+    }
+
+    if (!dispute) throw new NotFoundException('Dispute not found');
 
     dispute.status = dto.status;
 
@@ -166,27 +190,74 @@ export class PayrollTrackingService {
     return dispute;
   }
 
-  
+
   // REFUNDS
-  
+
   async createRefund(dto: CreateRefundDto): Promise<refunds> {
-    if (!dto.claimId && !dto.disputeId) {
-      throw new Error('Refund must be linked to either a claim or a dispute.');
+    // Relaxed check: Refund does NOT necessarily need to be linked to a claim or dispute if the user leaves them empty.
+    // The fields are optional in the UI.
+
+    let linkedClaimId: Types.ObjectId | undefined;
+    let linkedDisputeId: Types.ObjectId | undefined;
+
+    const claimIdInput = dto.claimId?.trim();
+    if (claimIdInput) {
+      // 1. Try to find by functional ID (string)
+      const claim = await this.claimModel.findOne({ claimId: claimIdInput });
+      if (claim) {
+        linkedClaimId = claim._id as Types.ObjectId;
+        if (claim.status === ClaimStatus.REJECTED) {
+          throw new BadRequestException(`Cannot create refund for rejected claim: ${claimIdInput}`);
+        }
+      } else {
+        // 2. Fallback: Check if it's a valid ObjectId (direct reference)
+        if (Types.ObjectId.isValid(claimIdInput)) {
+          const claimById = await this.claimModel.findById(claimIdInput);
+          if (claimById) {
+            linkedClaimId = claimById._id as Types.ObjectId;
+            if (claimById.status === ClaimStatus.REJECTED) {
+              throw new BadRequestException(`Cannot create refund for rejected claim: ${claimIdInput}`);
+            }
+          } else {
+            throw new NotFoundException(`Linked claim not found (ID: ${claimIdInput})`);
+          }
+        } else {
+          // Not a functional ID and not a valid MongoID -> Not found
+          throw new NotFoundException(`Linked claim not found (ID: ${claimIdInput})`);
+        }
+      }
     }
 
-    if (dto.claimId) {
-      const claim = await this.claimModel.findById(dto.claimId);
-      if (!claim) throw new Error('Linked claim not found.');
-    }
-
-    if (dto.disputeId) {
-      const dispute = await this.disputeModel.findById(dto.disputeId);
-      if (!dispute) throw new Error('Linked dispute not found.');
+    const disputeIdInput = dto.disputeId?.trim();
+    if (disputeIdInput) {
+      // 1. Try to find by functional ID (string)
+      const dispute = await this.disputeModel.findOne({ disputeId: disputeIdInput });
+      if (dispute) {
+        linkedDisputeId = dispute._id as Types.ObjectId;
+        if (dispute.status === DisputeStatus.REJECTED) {
+          throw new BadRequestException(`Cannot create refund for rejected dispute: ${disputeIdInput}`);
+        }
+      } else {
+        // 2. Fallback: Check if it's a valid ObjectId
+        if (Types.ObjectId.isValid(disputeIdInput)) {
+          const disputeById = await this.disputeModel.findById(disputeIdInput);
+          if (disputeById) {
+            linkedDisputeId = disputeById._id as Types.ObjectId;
+            if (disputeById.status === DisputeStatus.REJECTED) {
+              throw new BadRequestException(`Cannot create refund for rejected dispute: ${disputeIdInput}`);
+            }
+          } else {
+            throw new NotFoundException(`Linked dispute not found (ID: ${disputeIdInput})`);
+          }
+        } else {
+          throw new NotFoundException(`Linked dispute not found (ID: ${disputeIdInput})`);
+        }
+      }
     }
 
     const created = await this.refundModel.create({
-      claimId: dto.claimId ? new Types.ObjectId(dto.claimId) : undefined,
-      disputeId: dto.disputeId ? new Types.ObjectId(dto.disputeId) : undefined,
+      claimId: linkedClaimId,
+      disputeId: linkedDisputeId,
       employeeId: new Types.ObjectId(dto.employeeId),
       financeStaffId: dto.financeStaffId ? new Types.ObjectId(dto.financeStaffId) : undefined,
       refundDetails: {
@@ -214,9 +285,12 @@ export class PayrollTrackingService {
   }
 
   async updateRefundStatus(id: string, dto: UpdateRefundStatusDto): Promise<refunds> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('Invalid Refund ID');
+    }
     const refund = await this.refundModel.findById(id);
     if (!refund) {
-      throw new Error('Refund not found');
+      throw new NotFoundException('Refund not found');
     }
 
     refund.status = dto.status;
@@ -262,11 +336,34 @@ export class PayrollTrackingService {
   }
 
   async listPayslipsByEmployee(employeeId: string): Promise<paySlip[]> {
-    return (await this.payslipModel
-      .find({ employeeId: new Types.ObjectId(employeeId) })
-      .populate('payrollRunId')
-      .sort({ createdAt: -1 })
-      .lean()) as any;
+    let payslips: any[] = [];
+
+    // Try standard Mongoose query (ObjectId)
+    try {
+      if (Types.ObjectId.isValid(employeeId)) {
+        payslips = await this.payslipModel
+          .find({ employeeId: new Types.ObjectId(employeeId) })
+          .populate('payrollRunId')
+          .sort({ createdAt: -1 })
+          .lean();
+      }
+    } catch (e) {
+      // Ignore ObjectId casting errors
+    }
+
+    // Fallback: Check for String stored IDs (common issue with manual data insertion)
+    if (!payslips || payslips.length === 0) {
+      console.warn(`[PayslipRetrieval] No payslips found with ObjectId for ${employeeId}. Checking for String IDs...`);
+      const stringIdPayslips = await this.payslipModel.collection.find({
+        employeeId: employeeId
+      }).sort({ createdAt: -1 }).toArray();
+
+      if (stringIdPayslips && stringIdPayslips.length > 0) {
+        payslips = stringIdPayslips as any[];
+      }
+    }
+
+    return payslips as any;
   }
 
   async getPayslipStatus(id: string): Promise<{ status: string; paymentStatus: string }> {
@@ -280,9 +377,7 @@ export class PayrollTrackingService {
     };
   }
 
-  // ======================
-  // HISTORICAL RECORDS (Phase 1)
-  // ======================
+
 
   async getHistoricalSalaryRecords(
     employeeId: string,
@@ -297,16 +392,29 @@ export class PayrollTrackingService {
       if (endDate) query.createdAt.$lte = endDate;
     }
 
-    return (await this.payslipModel
+    let records = await this.payslipModel
       .find(query)
       .populate('payrollRunId')
       .sort({ createdAt: -1 })
-      .lean()) as any;
+      .lean();
+
+    // Fallback for String IDs
+    if (!records || records.length === 0) {
+      // Create fallback query replacing ObjectId with String
+      const stringQuery = { ...query, employeeId: employeeId };
+      const stringIdRecords = await this.payslipModel.collection.find(stringQuery)
+        .sort({ createdAt: -1 })
+        .toArray();
+
+      if (stringIdRecords && stringIdRecords.length > 0) {
+        records = stringIdRecords as any[];
+      }
+    }
+
+    return records as any;
   }
 
-  // ======================
-  // CERTIFICATES (Phase 1)
-  // ======================
+
 
   async generateTaxCertificate(
     employeeId: string,
@@ -390,9 +498,7 @@ export class PayrollTrackingService {
     };
   }
 
-  // ======================
-  // REPORTS (Phase 2)
-  // ======================
+
 
   async getDepartmentReport(
     departmentId: string,
@@ -406,7 +512,7 @@ export class PayrollTrackingService {
     totalNetPay: number;
     payrollRuns: any[];
   }> {
-    // Get all payroll runs in the date range
+
     const query: any = {};
     if (startDate || endDate) {
       query.payrollPeriod = {};
@@ -416,9 +522,7 @@ export class PayrollTrackingService {
 
     const payrollRunsList = await this.payrollRunsModel.find(query).lean();
 
-    // Get employee payroll details for employees in this department
-    // Note: This requires joining with EmployeeProfile to filter by department
-    // For now, we'll return payroll run summaries
+
     let totalGrossSalary = 0;
     let totalDeductions = 0;
     let totalNetPay = 0;

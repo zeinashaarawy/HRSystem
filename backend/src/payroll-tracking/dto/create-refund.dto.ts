@@ -13,18 +13,19 @@ class RefundDetailsDto {
 
 export class CreateRefundDto {
   @IsOptional()
-  @IsMongoId()
+  @IsOptional()
+  @IsString()
   claimId?: string;
 
   @IsOptional()
-  @IsMongoId()
+  @IsString()
   disputeId?: string;
 
   @IsMongoId()
   employeeId: string;
 
   @IsOptional()
-  @IsMongoId()  
+  @IsMongoId()
   financeStaffId?: string;
 
   @ValidateNested()

@@ -12,5 +12,6 @@ export enum DisputeStatus {
 }
 export enum RefundStatus {
     PENDING = 'pending',
-    PAID = 'paid' // when payroll execution
+    PAID = 'paid', // when payroll execution
+    REJECTED = 'rejected'
 }
