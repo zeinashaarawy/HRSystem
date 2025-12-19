@@ -12,7 +12,7 @@ import { RegisterDto } from '../dto/register.dto';
 
 
 @Controller('auth')
-export class AuthController {
+export class EmployeeProfileController {
   constructor(
     private readonly authService: AuthService,
     
@@ -23,12 +23,10 @@ export class AuthController {
   }
   
 @Post('register')
-
 register(@Body() dto: RegisterDto) {
   return this.authService.register(dto);
 }
-@Put(':id/roles')
-@Roles( ...ADMIN_ROLES)
+
 async updateRoles(
   @Param('id') id: string,
   @Body('roles') roles: string[],
