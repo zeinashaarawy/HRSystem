@@ -1,5 +1,5 @@
 import React from 'react';
-import type { FieldDef } from '@/lib/payroll-config/form';
+import type { FieldDef } from '@/lib/api/payroll-config/form';
 
 export function FormField({
   field,

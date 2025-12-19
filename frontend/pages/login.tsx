@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import api from "../api/axios";
 
 const LoginPage: React.FC = () => {
-  const [employeeNumber, setEmployeeNumber] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [msg, setMsg] = useState<string>("");
+  const [employeeNumber, setEmployeeNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [msg, setMsg] = useState("");
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -18,13 +18,21 @@ const LoginPage: React.FC = () => {
 
       const data = res.data;
 
+      // ===============================
+      // SAVE AUTH DATA
+      // ===============================
       localStorage.setItem("token", data.access_token);
-      localStorage.setItem("role", String(data.payload.role));
+      localStorage.setItem("role", data.payload.role || "");
       localStorage.setItem("userId", data.payload.id);
       localStorage.setItem("username", data.payload.username);
+      localStorage.setItem("userType", data.userType); // ✅ IMPORTANT
       localStorage.setItem("loginSuccess", "true");
 
-      window.location.href = "/";
+      // ===============================
+      // ✅ REDIRECT (SAME PAGE FOR BOTH)
+      // ===============================
+      window.location.href = "/"; // ← 7 modules page
+
     } catch (err: any) {
       setMsg(err.response?.data?.message || "Login failed ❌");
     }
@@ -35,13 +43,13 @@ const LoginPage: React.FC = () => {
       <div className="w-full max-w-md bg-white/10 backdrop-blur-xl p-8 rounded-2xl shadow-2xl border border-white/10">
 
         <h1 className="text-3xl font-semibold text-center text-white mb-6">
-          Employee Login
+          Login
         </h1>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <input
             type="text"
-            placeholder="Employee Number"
+            placeholder="Employee / Candidate Number"
             value={employeeNumber}
             onChange={(e) => setEmployeeNumber(e.target.value)}
             required
