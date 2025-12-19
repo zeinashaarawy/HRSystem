@@ -8,7 +8,14 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { SystemRole } from '../employee-profile/enums/employee-profile.enums';
+
 import { PayrollConfigurationService } from './payroll-configuration.service';
 import { ConfigStatus } from './enums/payroll-configuration-enums';
 import {
@@ -19,6 +26,13 @@ import {
   UpdateInsuranceBracketDto,
 } from './dto/payroll-configuration.dto';
 
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(
+  SystemRole.DEPARTMENT_EMPLOYEE,
+  SystemRole.HR_MANAGER,
+  SystemRole.DEPARTMENT_HEAD,
+  SystemRole.SYSTEM_ADMIN,
+)
 @Controller('payroll-configuration')
 export class PayrollConfigurationController {
   constructor(
