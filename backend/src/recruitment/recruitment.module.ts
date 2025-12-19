@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { RecruitmentController } from './recruitment.controller';
 import { RecruitmentService } from './recruitment.service';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -15,38 +16,32 @@ import { Document,DocumentSchema } from './models/document.schema';
 import { TerminationRequest,TerminationRequestSchema } from './models/termination-request.schema';
 import { ClearanceChecklist,ClearanceChecklistSchema } from './models/clearance-checklist.schema';
 import { Onboarding,OnboardingSchema } from './models/onboarding.schema';
+
+import { EmployeeProfileModule } from '../employee-profile/employee-profile.module';
+import { OrganizationStructureModule } from '../organization-structure/organization-structure.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { PayrollExecutionModule } from '../payroll-execution/payroll-execution.module';
 import {
-  StubOnboardingService,
-  StubEmployeeProfileService,
-  StubOrganizationStructureService,
-} from './services/stub-services';
+  EmployeeProfileServiceAdapter,
+  OrganizationStructureServiceAdapter,
+} from './services/adapter-services';
+import { OnboardingService } from './services/onboarding.service';
+import { OnboardingSchedulerService } from './services/onboarding-scheduler.service';
+import { OffboardingService } from './services/offboarding.service';
+import { StubTimeManagementService } from './services/stub-services';
+import { Candidate, CandidateSchema } from '../employee-profile/models/candidate.schema';
+import { EmployeeProfile, EmployeeProfileSchema } from '../employee-profile/models/employee-profile.schema';
+import { PerformanceModule } from '../performance/performance.module';
+import { LeavesModule } from '../leaves/leaves.module';
 
 /**
- * RecruitmentModule with stub services for cross-subsystem integration.
- * 
- * When other subsystems are integrated:
- * 1. Import the real modules (e.g., EmployeeProfileModule, OnboardingModule, etc.)
- * 2. Remove the stub service providers
- * 3. The real services will be injected automatically via their modules
- * 
- * Example integration:
- * ```typescript
- * @Module({
- *   imports: [
- *     MongooseModule.forFeature([...]),
- *     EmployeeProfileModule,  // Add real module
- *     OnboardingModule,        // Add real module
- *     OrganizationStructureModule, // Add real module
- *   ],
- *   providers: [
- *     RecruitmentService,
- *     // Remove stub services - real ones come from imported modules
- *   ],
- * })
- * ```
+ * RecruitmentModule - Integrated with EmployeeProfile, OrganizationStructure, and Onboarding services.
+ * All services are now using real implementations (no stubs).
  */
 @Module({
-  imports:[MongooseModule.forFeature([
+  imports: [
+    ScheduleModule.forRoot(),
+    MongooseModule.forFeature([
       { name: JobTemplate.name, schema: JobTemplateSchema },
       { name: JobRequisition.name, schema: JobRequisitionSchema },
       { name: Application.name, schema: ApplicationSchema },
@@ -60,26 +55,42 @@ import {
       { name: TerminationRequest.name, schema: TerminationRequestSchema },
       { name: ClearanceChecklist.name, schema: ClearanceChecklistSchema },
       { name: Onboarding.name, schema: OnboardingSchema },
-    ])
+      { name: Candidate.name, schema: CandidateSchema },
+      // Register EmployeeProfile as 'User' to match schema references
+      { name: 'User', schema: EmployeeProfileSchema },
+    ]),
+    EmployeeProfileModule,
+    OrganizationStructureModule,
+    NotificationsModule,
+    PerformanceModule,
+    LeavesModule,
+    forwardRef(() => PayrollExecutionModule),
   ],
   controllers: [RecruitmentController],
   providers: [
     RecruitmentService,
-    // Stub services for standalone operation - replace with real modules when integrated
-    {
-      provide: 'IOnboardingService',
-      useClass: StubOnboardingService,
-    },
+    EmployeeProfileServiceAdapter,
+    OrganizationStructureServiceAdapter,
     {
       provide: 'IEmployeeProfileService',
-      useClass: StubEmployeeProfileService,
+      useClass: EmployeeProfileServiceAdapter,
     },
     {
       provide: 'IOrganizationStructureService',
-      useClass: StubOrganizationStructureService,
+      useClass: OrganizationStructureServiceAdapter,
+    },
+    OnboardingService,
+    OnboardingSchedulerService,
+    OffboardingService,
+    {
+      provide: 'IOnboardingService',
+      useClass: OnboardingService,
+    },
+    {
+      provide: 'ITimeManagementService',
+      useClass: StubTimeManagementService, // ⚠️ Stub until Time Management module implements calendar methods
     },
   ],
-  exports:[RecruitmentService]
-
+  exports: [RecruitmentService, OnboardingService],
 })
 export class RecruitmentModule {}
