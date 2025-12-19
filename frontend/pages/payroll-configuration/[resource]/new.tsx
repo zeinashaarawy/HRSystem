@@ -1,13 +1,6 @@
 import { useRouter } from 'next/router';
 import React, { useMemo, useState } from 'react';
 
-const ALLOWED_ROLES = new Set([
-  'DEPARTMENT_EMPLOYEE',
-  'HR_MANAGER',
-  'DEPARTMENT_HEAD',
-  'SYSTEM_ADMIN',
-]);
-
 import { PayrollConfigLayout } from '@/components/payroll-config/PayrollConfigLayout';
 import { FormField } from '@/components/payroll-config/FormField';
 import {
@@ -22,6 +15,11 @@ import {
   setIn,
 } from '@/lib/api/payroll-config/form';
 import { createConfig } from '@/lib/api/payroll-config/api';
+import {
+  getPayrollPermissions,
+  normalizeRole,
+  type NormalizedSystemRole,
+} from '@/lib/api/payroll-config/permissions';
 
 export default function PayrollConfigNewPage() {
   const router = useRouter();
@@ -33,25 +31,35 @@ export default function PayrollConfigNewPage() {
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [role, setRole] = useState<NormalizedSystemRole | null>(null);
 
   React.useEffect(() => {
     const token = localStorage.getItem('token');
     const savedRole = localStorage.getItem('role');
-    const normalizedRole = (savedRole || '').toUpperCase().replaceAll(' ', '_');
+    const normalized = normalizeRole(savedRole);
 
     if (!token) {
       router.push('/login');
       return;
     }
 
-    if (!ALLOWED_ROLES.has(normalizedRole)) {
+    if (!normalized) {
       router.push('/dashboard');
       return;
     }
 
+    setRole(normalized);
+
     if (!meta) return;
+
+    const perms = getPayrollPermissions(normalized, meta.slug);
+    if (!perms.canCreate) {
+      router.push(`/payroll-configuration/${meta.slug}`);
+      return;
+    }
+
     setForm(initialFormState(meta.slug));
-  }, [router, meta?.slug]);
+  }, [router, meta?.slug, meta]);
 
   if (!meta) {
     return (

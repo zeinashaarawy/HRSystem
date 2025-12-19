@@ -3,13 +3,6 @@ import { useRouter } from 'next/router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, RefreshCw } from 'lucide-react';
 
-const ALLOWED_ROLES = new Set([
-  'DEPARTMENT_EMPLOYEE',
-  'HR_MANAGER',
-  'DEPARTMENT_HEAD',
-  'SYSTEM_ADMIN',
-]);
-
 import {
   getPayrollConfigResourceMeta,
   isConfigStatus,
@@ -18,6 +11,11 @@ import {
 } from '@/lib/api/payroll-config/resources';
 import { listConfigs } from '@/lib/api/payroll-config/api';
 import { PayrollConfigLayout } from '@/components/payroll-config/PayrollConfigLayout';
+import {
+  getPayrollPermissions,
+  normalizeRole,
+  type NormalizedSystemRole,
+} from '@/lib/api/payroll-config/permissions';
 
 function formatDate(v: any) {
   if (!v) return '—';
@@ -35,21 +33,24 @@ export default function PayrollConfigResourceListPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<any[]>([]);
+  const [role, setRole] = useState<NormalizedSystemRole | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     const savedRole = localStorage.getItem('role');
-    const normalizedRole = (savedRole || '').toUpperCase().replaceAll(' ', '_');
+    const normalized = normalizeRole(savedRole);
 
     if (!token) {
       router.push('/login');
       return;
     }
 
-    if (!ALLOWED_ROLES.has(normalizedRole)) {
+    if (!normalized) {
       router.push('/dashboard');
       return;
     }
+
+    setRole(normalized);
 
     if (!router.isReady) return;
     if (!meta) return;
@@ -58,10 +59,18 @@ export default function PayrollConfigResourceListPage() {
     if (typeof s === 'string' && isConfigStatus(s)) {
       setStatus(s);
     }
-  }, [router.isReady, router.query.status, meta]);
+  }, [router.isReady, router.query.status, meta, router]);
 
   async function load() {
-    if (!meta) return;
+    if (!meta || !role) return;
+
+    const perms = getPayrollPermissions(role, meta.slug as PayrollConfigResourceSlug);
+    if (!perms.canSeeResource) {
+      setItems([]);
+      setError('You do not have permission to view this resource.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -80,10 +89,10 @@ export default function PayrollConfigResourceListPage() {
   }
 
   useEffect(() => {
-    if (!meta) return;
+    if (!meta || !role) return;
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meta?.slug, status]);
+  }, [meta?.slug, status, role]);
 
   if (!meta) {
     return (
@@ -98,6 +107,8 @@ export default function PayrollConfigResourceListPage() {
       </PayrollConfigLayout>
     );
   }
+
+  const perms = getPayrollPermissions(role, meta.slug as PayrollConfigResourceSlug);
 
   return (
     <PayrollConfigLayout
@@ -132,7 +143,7 @@ export default function PayrollConfigResourceListPage() {
           </button>
         </div>
 
-        {meta.capabilities.canCreate ? (
+        {meta.capabilities.canCreate && perms.canCreate ? (
           <Link
             href={`/payroll-configuration/${meta.slug}/new`}
             className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-600 px-5 py-3 text-sm hover:opacity-90 transition"

@@ -37,6 +37,28 @@ export async function updateConfig(
   return res.data as any;
 }
 
+export async function approveConfig(
+  resource: PayrollConfigResourceSlug,
+  id: string,
+  approverId: string,
+) {
+  const res = await api.patch(`${BASE}/${resource}/${id}/approve`, {
+    approverId,
+  });
+  return res.data as any;
+}
+
+export async function rejectConfig(
+  resource: PayrollConfigResourceSlug,
+  id: string,
+  reviewerId: string,
+) {
+  const res = await api.patch(`${BASE}/${resource}/${id}/reject`, {
+    reviewerId,
+  });
+  return res.data as any;
+}
+
 export async function deleteInsuranceBracket(id: string) {
   const res = await api.delete(`${BASE}/insurance-brackets/${id}`);
   return res.data as any;

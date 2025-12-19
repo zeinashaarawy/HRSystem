@@ -1,13 +1,6 @@
 import { useRouter } from 'next/router';
 import React, { useEffect, useMemo, useState } from 'react';
 
-const ALLOWED_ROLES = new Set([
-  'DEPARTMENT_EMPLOYEE',
-  'HR_MANAGER',
-  'DEPARTMENT_HEAD',
-  'SYSTEM_ADMIN',
-]);
-
 import { PayrollConfigLayout } from '@/components/payroll-config/PayrollConfigLayout';
 import { FormField } from '@/components/payroll-config/FormField';
 import {
@@ -22,12 +15,19 @@ import {
   setIn,
 } from '@/lib/api/payroll-config/form';
 import {
+  approveConfig,
   approveInsuranceBracket,
   deleteInsuranceBracket,
   getConfig,
+  rejectConfig,
   rejectInsuranceBracket,
   updateConfig,
 } from '@/lib/api/payroll-config/api';
+import {
+  getPayrollPermissions,
+  normalizeRole,
+  type NormalizedSystemRole,
+} from '@/lib/api/payroll-config/permissions';
 
 function isEditable(doc: any) {
   // Most payroll configs enforce draft-only edits. Company-wide settings has no status.
@@ -52,6 +52,7 @@ export default function PayrollConfigDetailPage() {
 
   const [approverId, setApproverId] = useState('');
   const [reviewerId, setReviewerId] = useState('');
+  const [role, setRole] = useState<NormalizedSystemRole | null>(null);
 
   const fields = useMemo(
     () => (meta ? pickFormFields(meta.slug) : []),
@@ -85,20 +86,29 @@ export default function PayrollConfigDetailPage() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     const savedRole = localStorage.getItem('role');
-    const normalizedRole = (savedRole || '').toUpperCase().replaceAll(' ', '_');
+    const normalized = normalizeRole(savedRole);
 
     if (!token) {
       router.push('/login');
       return;
     }
 
-    if (!ALLOWED_ROLES.has(normalizedRole)) {
+    if (!normalized) {
       router.push('/dashboard');
       return;
     }
 
+    setRole(normalized);
+
     if (!router.isReady) return;
     if (!meta || !id) return;
+
+    const perms = getPayrollPermissions(normalized, meta.slug as PayrollConfigResourceSlug);
+    if (!perms.canSeeResource) {
+      router.push('/dashboard');
+      return;
+    }
+
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, router.isReady, meta?.slug, id]);
@@ -117,7 +127,8 @@ export default function PayrollConfigDetailPage() {
     );
   }
 
-  const editable = isEditable(doc);
+  const perms = getPayrollPermissions(role, meta.slug as PayrollConfigResourceSlug);
+  const editable = perms.canEdit && isEditable(doc);
 
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
@@ -142,11 +153,20 @@ export default function PayrollConfigDetailPage() {
   async function onApprove() {
     if (!meta) return;
     if (!id) return;
-    if (meta.slug !== 'insurance-brackets') return;
+    if (!perms.canApproveReject) return;
     setSaving(true);
     setActionError(null);
     try {
-      const updated = await approveInsuranceBracket(id, approverId);
+      let updated: any;
+      if (meta.slug === 'insurance-brackets') {
+        updated = await approveInsuranceBracket(id, approverId);
+      } else {
+        updated = await approveConfig(
+          meta.slug as PayrollConfigResourceSlug,
+          id,
+          approverId,
+        );
+      }
       setDoc(updated);
     } catch (err: any) {
       setActionError(
@@ -160,11 +180,20 @@ export default function PayrollConfigDetailPage() {
   async function onReject() {
     if (!meta) return;
     if (!id) return;
-    if (meta.slug !== 'insurance-brackets') return;
+    if (!perms.canApproveReject) return;
     setSaving(true);
     setActionError(null);
     try {
-      const updated = await rejectInsuranceBracket(id, reviewerId);
+      let updated: any;
+      if (meta.slug === 'insurance-brackets') {
+        updated = await rejectInsuranceBracket(id, reviewerId);
+      } else {
+        updated = await rejectConfig(
+          meta.slug as PayrollConfigResourceSlug,
+          id,
+          reviewerId,
+        );
+      }
       setDoc(updated);
     } catch (err: any) {
       setActionError(
@@ -179,6 +208,7 @@ export default function PayrollConfigDetailPage() {
     if (!meta) return;
     if (!id) return;
     if (meta.slug !== 'insurance-brackets') return;
+    if (!perms.canDelete) return;
     if (!confirm('Delete this insurance bracket?')) return;
 
     setSaving(true);
@@ -279,60 +309,67 @@ export default function PayrollConfigDetailPage() {
                   </button>
                 </div>
 
-                {meta.slug === 'insurance-brackets' ? (
+                {(perms.canApproveReject ||
+                  (meta.slug === 'insurance-brackets' && perms.canDelete)) ? (
                   <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-                      <p className="text-sm text-gray-200 mb-2">Approve</p>
-                      <input
-                        className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-gray-500"
-                        placeholder="approverId"
-                        value={approverId}
-                        onChange={(e) => setApproverId(e.target.value)}
-                        disabled={saving}
-                      />
-                      <button
-                        type="button"
-                        className="mt-3 w-full rounded-xl bg-emerald-600/80 hover:bg-emerald-600 px-4 py-2 text-sm disabled:opacity-60"
-                        onClick={() => void onApprove()}
-                        disabled={saving || !approverId}
-                      >
-                        Approve
-                      </button>
-                    </div>
+                    {perms.canApproveReject ? (
+                      <>
+                        <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+                          <p className="text-sm text-gray-200 mb-2">Approve</p>
+                          <input
+                            className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-gray-500"
+                            placeholder="approverId"
+                            value={approverId}
+                            onChange={(e) => setApproverId(e.target.value)}
+                            disabled={saving}
+                          />
+                          <button
+                            type="button"
+                            className="mt-3 w-full rounded-xl bg-emerald-600/80 hover:bg-emerald-600 px-4 py-2 text-sm disabled:opacity-60"
+                            onClick={() => void onApprove()}
+                            disabled={saving || !approverId}
+                          >
+                            Approve
+                          </button>
+                        </div>
 
-                    <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-                      <p className="text-sm text-gray-200 mb-2">Reject</p>
-                      <input
-                        className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-gray-500"
-                        placeholder="reviewerId"
-                        value={reviewerId}
-                        onChange={(e) => setReviewerId(e.target.value)}
-                        disabled={saving}
-                      />
-                      <button
-                        type="button"
-                        className="mt-3 w-full rounded-xl bg-amber-600/80 hover:bg-amber-600 px-4 py-2 text-sm disabled:opacity-60"
-                        onClick={() => void onReject()}
-                        disabled={saving || !reviewerId}
-                      >
-                        Reject
-                      </button>
-                    </div>
+                        <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+                          <p className="text-sm text-gray-200 mb-2">Reject</p>
+                          <input
+                            className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-gray-500"
+                            placeholder="reviewerId"
+                            value={reviewerId}
+                            onChange={(e) => setReviewerId(e.target.value)}
+                            disabled={saving}
+                          />
+                          <button
+                            type="button"
+                            className="mt-3 w-full rounded-xl bg-amber-600/80 hover:bg-amber-600 px-4 py-2 text-sm disabled:opacity-60"
+                            onClick={() => void onReject()}
+                            disabled={saving || !reviewerId}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </>
+                    ) : null}
 
-                    <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-                      <p className="text-sm text-gray-200 mb-2">Danger Zone</p>
-                      <button
-                        type="button"
-                        className="w-full rounded-xl bg-red-600/80 hover:bg-red-600 px-4 py-2 text-sm disabled:opacity-60"
-                        onClick={() => void onDelete()}
-                        disabled={saving}
-                      >
-                        Delete
-                      </button>
-                      <p className="mt-2 text-xs text-gray-400">
-                        Approved insurance brackets cannot be deleted.
-                      </p>
-                    </div>
+                    {meta.slug === 'insurance-brackets' && perms.canDelete ? (
+                      <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+                        <p className="text-sm text-gray-200 mb-2">Danger Zone</p>
+                        <button
+                          type="button"
+                          className="w-full rounded-xl bg-red-600/80 hover:bg-red-600 px-4 py-2 text-sm disabled:opacity-60"
+                          onClick={() => void onDelete()}
+                          disabled={saving}
+                        >
+                          Delete
+                        </button>
+                        <p className="mt-2 text-xs text-gray-400">
+                          Approved insurance brackets cannot be deleted.
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </form>
