@@ -27,6 +27,7 @@ import { signingBonusDocument } from '../payroll-configuration/models/signingBon
 import { terminationAndResignationBenefitsDocument } from '../payroll-configuration/models/terminationAndResignationBenefits';
 import { payrollRuns, payrollRunsDocument } from './models/payrollRuns.schema';
 import { employeePayrollDetails, employeePayrollDetailsDocument } from './models/employeePayrollDetails.schema';
+import { EmployeeTerminationResignation } from './models/EmployeeTerminationResignation.schema';
 import { PayRollStatus, PayRollPaymentStatus, BankStatus } from './enums/payroll-execution-enum';
 import { allowance } from '../payroll-configuration/models/allowance.schema';
 import { taxRules } from '../payroll-configuration/models/taxRules.schema';
@@ -311,7 +312,7 @@ type LeanEmployeeTerminationResignation = Record<string, any> & {
 @Injectable()
 export class PayrollExecutionService {
   private readonly signingBonusModel: Model<employeeSigningBonusDocument>;
-  private readonly terminationBenefitModel: Model<any>;
+  private readonly terminationBenefitModel: Model<EmployeeTerminationResignation>;
   private readonly payrollRunModel: Model<payrollRunsDocument>;
   private readonly employeePayrollDetailsModel: Model<employeePayrollDetailsDocument>;
   private readonly employeeProfileModel: Model<EmployeeProfileDocument>;
@@ -328,8 +329,8 @@ export class PayrollExecutionService {
     @InjectModel(employeeSigningBonus.name)
     signingBonusModel?: Model<employeeSigningBonusDocument>,
     @Optional()
-    @InjectModel('EmployeeTerminationResignation')
-    terminationBenefitModel?: Model<any>,
+    @InjectModel(EmployeeTerminationResignation.name)
+    terminationBenefitModel?: Model<EmployeeTerminationResignation>,
     @Optional()
     @InjectModel(payrollRuns.name)
     payrollRunModel?: Model<payrollRunsDocument>,
@@ -752,93 +753,195 @@ export class PayrollExecutionService {
   async getProcessedTerminationBenefits(
     filter: TerminationBenefitReviewFilter = {},
   ): Promise<TerminationBenefitReviewItem[]> {
+    console.log('=== Starting getProcessedTerminationBenefits ===');
+    console.log('Filter:', JSON.stringify(filter, null, 2));
+
     const query: FilterQuery<LeanEmployeeTerminationResignation> = {};
 
-    // Keep status filter if provided
+    // Status filter
     if (filter.status) {
       if (!Object.values(BenefitStatus).includes(filter.status)) {
         throw new BadRequestException('Unsupported termination benefit status filter');
       }
       query.status = filter.status;
+      console.log('Applied status filter:', filter.status);
+    } else {
+      console.log('No status filter applied');
     }
 
-    // Keep employee filter if provided
+    // Employee filter
     if (filter.employeeId) {
       if (!Types.ObjectId.isValid(filter.employeeId)) {
         throw new BadRequestException('Invalid employeeId filter');
       }
       query.employeeId = new Types.ObjectId(filter.employeeId);
+      console.log('Applied employee filter:', filter.employeeId);
+    } else {
+      console.log('No employee filter applied');
     }
 
-    // Fetch termination benefits with minimal population to get all records
-    const terminationBenefits = await this.terminationBenefitModel
-      .find(query)
-      .populate('benefitId')
-      .populate('terminationId')
-      .lean<LeanEmployeeTerminationResignation[]>()
-      .exec();
+    console.log('Final query:', JSON.stringify(query, null, 2));
 
-    if (!terminationBenefits.length) {
-      return [];
+    try {
+      // Check total documents in collection
+      const totalCount = await this.terminationBenefitModel.countDocuments({}).exec();
+      const filteredCount = await this.terminationBenefitModel.countDocuments(query).exec();
+
+      console.log(`Total documents in collection: ${totalCount}`);
+      console.log(`Documents matching query: ${filteredCount}`);
+
+      if (totalCount === 0) {
+        console.log('WARNING: No termination benefits found in the entire collection');
+      } else if (filteredCount === 0) {
+        console.log('WARNING: No termination benefits match the query filters');
+      }
+
+      // Fetch termination benefits with population
+      console.log('Fetching termination benefits with population...');
+      const terminationBenefits = await this.terminationBenefitModel
+        .find(query)
+        .populate('benefitId')
+        .populate('terminationId')
+        .lean<LeanEmployeeTerminationResignation[]>()
+        .exec();
+
+      console.log(`Found ${terminationBenefits.length} termination benefits after population`);
+
+      if (terminationBenefits.length > 0) {
+        console.log('Sample benefit (first record):', JSON.stringify(terminationBenefits[0], null, 2));
+      }
+
+      if (!terminationBenefits.length) {
+        console.log('No termination benefits found matching the query');
+        console.log('Query that returned no results:', JSON.stringify(query, null, 2));
+        return [];
+      }
+
+      // Collect all unique employee IDs from the benefits
+      const employeeIds = Array.from(
+        new Set(
+          terminationBenefits
+            .map(b => b.employeeId?.toString())
+            .filter((id): id is string => !!id),
+        ),
+      );
+
+      console.log(`Found ${employeeIds.length} unique employee IDs in benefits`);
+      console.log('Employee IDs:', employeeIds);
+
+      if (employeeIds.length === 0) {
+        console.log('WARNING: No valid employee IDs found in the benefits');
+      }
+
+      // Fetch employee details
+      console.log('Fetching employee details...');
+      const employees = await this.employeeProfileModel
+        .find({ _id: { $in: employeeIds } })
+        .lean<(EmployeeProfileWithContract & { _id: Types.ObjectId })[]>()
+        .exec();
+
+      console.log(`Found ${employees.length} employee records`);
+
+      if (employees.length === 0) {
+        console.log('WARNING: No employee records found for the given IDs');
+      } else {
+        console.log('Sample employee record:', JSON.stringify(employees[0], null, 2));
+      }
+
+      const employeeMap = new Map(
+        employees.map((emp) => [emp._id.toString(), emp]),
+      );
+
+      console.log(`Employee map contains ${employeeMap.size} entries`);
+
+      // Build review items
+      const reviewItems: TerminationBenefitReviewItem[] = [];
+      console.log(`Processing ${terminationBenefits.length} termination benefits...`);
+
+      let skippedCount = 0;
+      let processedCount = 0;
+
+      for (const benefit of terminationBenefits) {
+        const benefitId = benefit._id?.toString() || 'unknown';
+        console.log(`\n--- Processing benefit ${benefitId} ---`);
+
+        if (!benefit.employeeId) {
+          console.log('Skipping - No employeeId in benefit');
+          skippedCount++;
+          continue;
+        }
+
+        const employeeIdStr = benefit.employeeId.toString();
+        console.log(`Looking up employee ${employeeIdStr} in employeeMap`);
+
+        const employee = employeeMap.get(employeeIdStr);
+        if (!employee) {
+          console.log(`Skipping - Employee ${employeeIdStr} not found in employeeMap`);
+          console.log('Available employee IDs in map:', Array.from(employeeMap.keys()));
+          skippedCount++;
+          continue;
+        }
+
+        // Extract termination ID safely
+        let terminationId: string | undefined;
+        if (benefit.terminationId instanceof Types.ObjectId) {
+          terminationId = benefit.terminationId.toString();
+        } else if (benefit.terminationId && typeof benefit.terminationId === 'object') {
+          terminationId = (benefit.terminationId as any)?._id?.toString();
+        }
+
+        console.log('Termination ID:', terminationId || 'Not found');
+        console.log('Benefit ID:', benefit.benefitId ? 'Found' : 'Missing');
+
+        // Build the review item
+        const reviewItem: TerminationBenefitReviewItem = {
+          id: benefitId,
+          employeeId: employeeIdStr,
+          employeeName: employee.fullName || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown',
+          status: benefit.status || BenefitStatus.PENDING,
+          benefitId: (benefit.benefitId as any)?._id?.toString(),
+          benefitName: (benefit.benefitId as any)?.name,
+          benefitAmount: (benefit.benefitId as any)?.amount,
+          terminationId: terminationId,
+          terminationStatus: (benefit.terminationId as any)?.status,
+          hrClearanceCompleted: false, // Bypassing HR clearance check as requested
+          eligible: true, // Default to eligible
+        };
+
+        console.log('Created review item:', JSON.stringify(reviewItem, null, 2));
+        reviewItems.push(reviewItem);
+        processedCount++;
+      }
+
+      console.log('\n--- Processing Summary ---');
+      console.log(`Total benefits processed: ${terminationBenefits.length}`);
+      console.log(`Successfully created review items: ${processedCount}`);
+      console.log(`Skipped benefits: ${skippedCount}`);
+      console.log(`Final review items count: ${reviewItems.length}`);
+
+      if (reviewItems.length > 0) {
+        console.log('Sample review item:', JSON.stringify(reviewItems[0], null, 2));
+      }
+
+      return reviewItems;
+    } catch (error) {
+      console.error('Error in getProcessedTerminationBenefits:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+      }
+      throw error;
+    } finally {
+      console.log('=== Completed getProcessedTerminationBenefits ===');
     }
-
-    // Collect employee IDs
-    const employeeIds = Array.from(
-      new Set(
-        terminationBenefits
-          .map(b => b.employeeId?.toString())
-          .filter((id): id is string => !!id),
-      ),
-    );
-
-    // Fetch employees
-    const employees = await this.employeeProfileModel
-      .find({ _id: { $in: employeeIds } })
-      .lean<(EmployeeProfileWithContract & { _id: Types.ObjectId })[]>()
-      .exec();
-
-    const employeeMap = new Map<string, EmployeeProfileWithContract>(
-      employees.map(emp => [emp._id.toString(), emp]),
-    );
-
-    // Build review items without HR clearance check
-    const reviewItems: TerminationBenefitReviewItem[] = [];
-
-    for (const benefit of terminationBenefits) {
-      if (!benefit.employeeId) continue;
-
-      const employee = employeeMap.get(benefit.employeeId.toString());
-      if (!employee) continue;
-
-      const terminationId =
-        benefit.terminationId instanceof Types.ObjectId
-          ? benefit.terminationId.toString()
-          : (benefit.terminationId as any)?._id?.toString();
-
-      // Create a basic review item without HR clearance check
-      reviewItems.push({
-        id: benefit._id?.toString() || '',
-        employeeId: benefit.employeeId.toString(),
-        employeeName: employee.fullName || `${employee.firstName} ${employee.lastName}`.trim(),
-        status: benefit.status || BenefitStatus.PENDING,
-        benefitId: benefit.benefitId?._id?.toString(),
-        benefitName: (benefit.benefitId as any)?.name,
-        benefitAmount: (benefit.benefitId as any)?.amount,
-        terminationId: terminationId,
-        terminationStatus: (benefit.terminationId as any)?.status,
-        hrClearanceCompleted: false, // Default to false since we're bypassing the check
-        eligible: true, // Default to true since we're not checking eligibility
-      });
-    }
-
-    return reviewItems;
   }
-
-
 
   async approveTerminationBenefit(
     terminationBenefitId: string,
-    dto: ApproveTerminationBenefitDto = {},
+    dto: ApproveTerminationBenefitDto = {}
   ): Promise<TerminationBenefitReviewItem> {
     if (!Types.ObjectId.isValid(terminationBenefitId)) {
       throw new BadRequestException('Invalid termination benefit identifier');
@@ -2141,24 +2244,63 @@ export class PayrollExecutionService {
     employeeId: string,
     payrollRunId: string,
   ): Promise<any> {
-    if (!Types.ObjectId.isValid(employeeId) || !Types.ObjectId.isValid(payrollRunId)) {
-      throw new BadRequestException('Invalid employee or payroll run identifier');
+    // Validate input parameters
+    if (!Types.ObjectId.isValid(employeeId)) {
+      throw new BadRequestException('Invalid employee identifier format');
+    }
+    if (!Types.ObjectId.isValid(payrollRunId)) {
+      throw new BadRequestException('Invalid payroll run identifier format');
     }
 
-    const payrollRun = await this.payrollRunModel.findById(payrollRunId).exec();
+    const employeeObjectId = new Types.ObjectId(employeeId);
+    const payrollRunObjectId = new Types.ObjectId(payrollRunId);
+
+    // Check if payroll run exists
+    const payrollRun = await this.payrollRunModel.findById(payrollRunObjectId).exec();
     if (!payrollRun) {
-      throw new NotFoundException('Payroll run not found');
+      throw new NotFoundException(`Payroll run with ID ${payrollRunId} not found`);
     }
 
+    // Check if employee exists
+    const employeeProfile = await this.employeeProfileModel.findById(employeeObjectId).lean().exec();
+    if (!employeeProfile) {
+      throw new NotFoundException(`Employee with ID ${employeeId} not found`);
+    }
+
+    // Check if payroll details exist for this employee and run
     const employeePayrollDetail = await this.employeePayrollDetailsModel
       .findOne({
-        employeeId: new Types.ObjectId(employeeId),
-        payrollRunId: new Types.ObjectId(payrollRunId),
+        employeeId: employeeObjectId,
+        payrollRunId: payrollRunObjectId,
       })
       .exec();
 
     if (!employeePayrollDetail) {
-      throw new NotFoundException('Employee payroll details not found for this payroll run');
+      // Check if employee has any payroll details at all
+      const hasAnyPayrollDetails = await this.employeePayrollDetailsModel
+        .exists({ employeeId: employeeObjectId });
+
+      if (!hasAnyPayrollDetails) {
+        throw new NotFoundException(
+          `No payroll details found for employee ${employeeId}. ` +
+          'Employee may not be assigned to any payroll run.'
+        );
+      }
+
+      // Check if employee is assigned to this payroll run but details are missing
+      const isInPayrollRun = await this.employeePayrollDetailsModel
+        .exists({ payrollRunId: payrollRunObjectId });
+
+      if (!isInPayrollRun) {
+        throw new NotFoundException(
+          `No employee payroll details found for payroll run ${payrollRunId}. ` +
+          'The payroll run may not have been processed yet.'
+        );
+      }
+
+      throw new NotFoundException(
+        `Payroll details not found for employee ${employeeId} in payroll run ${payrollRunId}`
+      );
     }
 
     const employee = await this.employeeProfileModel.findById(employeeId).lean().exec();
@@ -2259,44 +2401,103 @@ export class PayrollExecutionService {
 
   /**
    * Generate payslips for all employees in a payroll run
+   * @param payrollRunId The ID of the payroll run
+   * @returns Array of generated payslips and any errors encountered
    */
-  async generatePayslipsForPayrollRun(payrollRunId: string): Promise<any[]> {
+  async generatePayslipsForPayrollRun(payrollRunId: string): Promise<{
+    success: boolean;
+    payslips: any[];
+    errors: string[];
+    summary: {
+      totalEmployees: number;
+      successful: number;
+      failed: number;
+    };
+  }> {
+    // Validate payroll run ID format
     if (!Types.ObjectId.isValid(payrollRunId)) {
-      throw new BadRequestException('Invalid payroll run identifier');
+      throw new BadRequestException('Invalid payroll run identifier format');
     }
 
-    const payrollRun = await this.payrollRunModel.findById(payrollRunId).exec();
+    const payrollRunObjectId = new Types.ObjectId(payrollRunId);
+
+    // Check if payroll run exists
+    const payrollRun = await this.payrollRunModel.findById(payrollRunObjectId).exec();
     if (!payrollRun) {
-      throw new NotFoundException('Payroll run not found');
+      throw new NotFoundException(`Payroll run with ID ${payrollRunId} not found`);
     }
 
+    // Check if payroll run is in the correct status
     if (payrollRun.status !== PayRollStatus.APPROVED) {
-      throw new BadRequestException('Payroll run must be approved before generating payslips');
+      throw new BadRequestException(
+        `Payroll run must be in 'APPROVED' status before generating payslips. Current status: ${payrollRun.status}`
+      );
     }
 
+    // Get all employee payroll details for this run
     const employeePayrollDetails = await this.employeePayrollDetailsModel
-      .find({ payrollRunId: new Types.ObjectId(payrollRunId) })
+      .find({ payrollRunId: payrollRunObjectId })
       .lean()
       .exec();
 
     if (!employeePayrollDetails.length) {
-      throw new NotFoundException('No employee payroll details found for this payroll run');
+      // Check if the payroll run has any employees assigned
+      const hasEmployees = await this.employeeProfileModel.exists({});
+      if (!hasEmployees) {
+        throw new NotFoundException(
+          'No employees found in the system. Cannot generate payslips without employees.'
+        );
+      }
+
+      // Check if payroll run was processed but has no details
+      const isProcessed = await this.employeePayrollDetailsModel.exists({});
+      if (isProcessed) {
+        throw new NotFoundException(
+          `No employee payroll details found for payroll run ${payrollRunId}. ` +
+          'The payroll run may not have been processed yet or no employees were assigned.'
+        );
+      }
+
+      throw new NotFoundException(
+        'No employee payroll details found. Please ensure the payroll run has been processed and has assigned employees.'
+      );
     }
 
     const payslips: any[] = [];
     const errors: string[] = [];
 
+    // Process each employee's payslip
     for (const detail of employeePayrollDetails) {
       try {
-        const payslip = await this.generatePayslip(
-          detail.employeeId.toString(),
-          payrollRunId,
-        );
+        const employeeId = detail.employeeId.toString();
+
+        // Check if employee exists before processing
+        const employeeExists = await this.employeeProfileModel.exists({ _id: detail.employeeId });
+        if (!employeeExists) {
+          errors.push(`Employee ${employeeId}: Employee record not found`);
+          continue;
+        }
+
+        // Generate the payslip
+        const payslip = await this.generatePayslip(employeeId, payrollRunId);
         payslips.push(payslip);
       } catch (error: any) {
-        errors.push(`Employee ${detail.employeeId}: ${error.message}`);
+        const errorMessage = error.response?.message || error.message || 'Unknown error';
+        const employeeId = detail?.employeeId?.toString() || 'unknown';
+        errors.push(`Employee ${employeeId}: ${errorMessage}`);
       }
     }
+
+    const result = {
+      success: errors.length === 0,
+      payslips,
+      errors,
+      summary: {
+        totalEmployees: employeePayrollDetails.length,
+        successful: payslips.length,
+        failed: errors.length,
+      }
+    };
 
     this.logSystemAction('PAYSLIPS_BATCH_GENERATED', {
       payrollRunId,
@@ -2305,7 +2506,7 @@ export class PayrollExecutionService {
       errors,
     });
 
-    return payslips;
+    return result;
   }
 
   /**
@@ -2325,16 +2526,6 @@ export class PayrollExecutionService {
       employeeId: new Types.ObjectId(employeeId),
       payrollRunId: new Types.ObjectId(payrollRunId),
     })
-      .populate('employeeId')
-      .populate('payrollRunId')
-      .lean()
-      .exec();
-
-    if (!payslip) {
-      throw new NotFoundException('Payslip not found');
-    }
-
-    return payslip;
   }
 
   /**
@@ -3172,12 +3363,11 @@ export class PayrollExecutionService {
       );
     }
 
-    // Generate payslips for all employees
-    const payslips = await this.generatePayslipsForPayrollRun(payrollRunId);
+    // Generate payslips for all employees in this payroll run
+    const { payslips } = await this.generatePayslipsForPayrollRun(payrollRunId);
 
-    // Distribute payslips
+    // Process each payslip for distribution
     const distributions: PayslipDistribution[] = [];
-
     for (const payslip of payslips) {
       const p: any = payslip;
       const employee = await this.employeeProfileModel
