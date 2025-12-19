@@ -1,59 +1,39 @@
-import { SystemRole } from "@/enums/SystemRole";
+import { SystemRole } from "../enums/SystemRole";
 
 /**
- * Check if a user has admin privileges
- * @param roles - Array of user roles
- * @returns true if user has any admin role
+ * =========================
+ * ADMIN ROLES
+ * =========================
  */
-export function isAdmin(roles?: SystemRole[]): boolean {
-  if (!roles || roles.length === 0) {
-    return false;
-  }
+export const ADMIN_ROLES: SystemRole[] = [
+  SystemRole.SYSTEM_ADMIN,
+  SystemRole.LEGAL_POLICY_ADMIN,
+  SystemRole.HR_ADMIN,
+];
 
-  const adminRoles = [
-    SystemRole.SYSTEM_ADMIN,
-    SystemRole.HR_ADMIN,
-    SystemRole.HR_MANAGER,
-    SystemRole.PAYROLL_MANAGER,
-    SystemRole.LEGAL_POLICY_ADMIN,
-  ];
+/**
+ * =========================
+ * ROLE CHECK HELPERS
+ * =========================
+ */
 
-  return roles.some((role) => adminRoles.includes(role));
+export function isAdmin(userRoles?: SystemRole[]) {
+  if (!userRoles) return false;
+  return userRoles.some((role) => ADMIN_ROLES.includes(role));
 }
 
-/**
- * Check if a user has HR privileges
- * @param roles - Array of user roles
- * @returns true if user has any HR role
- */
-export function isHR(roles?: SystemRole[]): boolean {
-  if (!roles || roles.length === 0) {
-    return false;
-  }
-
-  const hrRoles = [
-    SystemRole.HR_ADMIN,
-    SystemRole.HR_MANAGER,
-    SystemRole.HR_EMPLOYEE,
-  ];
-
-  return roles.some((role) => hrRoles.includes(role));
+export function isEmployee(userRoles?: SystemRole[]) {
+  if (!userRoles) return false;
+  return (
+    userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE) ||
+    userRoles.includes(SystemRole.HR_EMPLOYEE)
+  );
 }
 
-/**
- * Check if a user has payroll privileges
- * @param roles - Array of user roles
- * @returns true if user has any payroll role
- */
-export function isPayroll(roles?: SystemRole[]): boolean {
-  if (!roles || roles.length === 0) {
-    return false;
-  }
-
-  const payrollRoles = [
-    SystemRole.PAYROLL_MANAGER,
-    SystemRole.PAYROLL_SPECIALIST,
-  ];
-
-  return roles.some((role) => payrollRoles.includes(role));
+export function isManager(userRoles?: SystemRole[]) {
+  if (!userRoles) return false;
+  return (
+    userRoles.includes(SystemRole.DEPARTMENT_HEAD) ||
+    userRoles.includes(SystemRole.HR_MANAGER)
+  );
 }

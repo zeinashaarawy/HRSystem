@@ -77,8 +77,13 @@ function Page() {
   };
 
   const loadCategories = async () => {
-    const res = await getLeaveCategories();
-    setCategories(res.data || []);
+    try {
+      const res = await getLeaveCategories();
+      setCategories(res.data || []);
+    } catch (error) {
+      console.error("Failed to load categories:", error);
+      setCategories([]); // Set empty array on error
+    }
   };
 
   useEffect(() => {

@@ -11,6 +11,9 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
+  // Set global prefix to match frontend API calls
+  app.setGlobalPrefix('api/v1');
+
   // =============================
   //          FIXED CORS
   // =============================
@@ -18,7 +21,7 @@ async function bootstrap() {
     origin: "http://localhost:3000",   // frontend
     credentials: true,
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-user-id", "x-user-role"],
   });
   
 
