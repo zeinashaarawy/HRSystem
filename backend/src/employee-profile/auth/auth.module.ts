@@ -10,7 +10,6 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { CandidateModule } from '../../candidate/candidate.module';
 @Module({
   imports: [
-    AuthModule,
     // Register Employee schema for Auth login
     MongooseModule.forFeature([{ name: 'EmployeeProfile', schema: EmployeeProfileSchema },
         { name: EmployeeSystemRole.name, schema: EmployeeSystemRoleSchema }

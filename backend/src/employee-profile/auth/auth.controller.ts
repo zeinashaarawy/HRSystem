@@ -22,10 +22,15 @@ export class EmployeeProfileController {
     return this.authService.login(dto);
   }
   
-@Post('register')
+  @Post('register')
 register(@Body() dto: RegisterDto) {
   return this.authService.register(dto);
 }
+
+  @Get('debug/employees')
+  async debugEmployees() {
+    return this.authService.getAllEmployeeNumbers();
+  }
 
 @Put(':id/roles')
 @UseGuards(JwtAuthGuard, RolesGuard)

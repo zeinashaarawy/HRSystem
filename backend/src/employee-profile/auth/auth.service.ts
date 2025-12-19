@@ -52,9 +52,35 @@ export class AuthService {
   /* =========================
      1️⃣ TRY EMPLOYEE LOGIN
   ========================== */
-  const employee = await this.employeeModel.findOne({
+  console.log('🔍 Searching for employee with employeeNumber:', dto.employeeNumber);
+  // Try exact match first
+  let employee = await this.employeeModel.findOne({
     employeeNumber: dto.employeeNumber,
   });
+  
+  // If not found, try case-insensitive search
+  if (!employee) {
+    console.log('⚠️ Exact match not found, trying case-insensitive search...');
+    employee = await this.employeeModel.findOne({
+      employeeNumber: { $regex: new RegExp(`^${dto.employeeNumber}$`, 'i') },
+    });
+  }
+  
+  // Also try trimming whitespace
+  if (!employee) {
+    console.log('⚠️ Case-insensitive not found, trying trimmed search...');
+    employee = await this.employeeModel.findOne({
+      employeeNumber: dto.employeeNumber.trim(),
+    });
+  }
+  
+  console.log('👤 Employee found:', employee ? `YES (ID: ${employee._id})` : 'NO');
+  
+  // Debug: List all employee numbers in database (first 5)
+  if (!employee) {
+    const sampleEmployees = await this.employeeModel.find({}).select('employeeNumber').limit(5).lean();
+    console.log('📋 Sample employeeNumbers in DB:', sampleEmployees.map(e => e.employeeNumber));
+  }
 
   if (employee) {
     const isMatch = await bcrypt.compare(
@@ -102,9 +128,11 @@ export class AuthService {
   /* =========================
      2️⃣ TRY CANDIDATE LOGIN
   ========================== */
+  console.log('🔍 Searching for candidate with candidateNumber:', dto.employeeNumber);
   const candidate = await this.candidateModel.findOne({
     candidateNumber: dto.employeeNumber,
   });
+  console.log('👤 Candidate found:', candidate ? 'YES' : 'NO');
 
   if (!candidate)
     throw new NotFoundException('User not found');
@@ -183,5 +211,26 @@ export class AuthService {
     });
 
     return candidate.save();
+  }
+
+  /* =========================
+     DEBUG: GET ALL EMPLOYEE NUMBERS
+  ========================== */
+  async getAllEmployeeNumbers() {
+    const employees = await this.employeeModel.find({}).select('employeeNumber firstName lastName').limit(50).lean();
+    const candidates = await this.candidateModel.find({}).select('candidateNumber firstName lastName').limit(50).lean();
+    
+    return {
+      employees: employees.map(e => ({
+        employeeNumber: e.employeeNumber,
+        name: `${e.firstName} ${e.lastName}`
+      })),
+      candidates: candidates.map(c => ({
+        candidateNumber: c.candidateNumber,
+        name: `${c.firstName} ${c.lastName}`
+      })),
+      totalEmployees: employees.length,
+      totalCandidates: candidates.length
+    };
   }
 }
