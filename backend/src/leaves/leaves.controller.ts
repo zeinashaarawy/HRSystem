@@ -30,6 +30,15 @@ import { ApproveAdjustmentDto } from './dto/approve-adjustment.dto';
 import { CreateCalendarDto } from './dto/create-calendar.dto';
 import { UpdateCalendarDto } from './dto/update-calendar.dto';
 import { CreateBlockedPeriodDto } from './dto/create-blocked-period.dto';
+import { CreateLeaveCategoryDto } from './dto/create-leave-category.dto';
+
+import { UseGuards } from '@nestjs/common';
+
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { ADMIN_ROLES } from '../common/constants/role-groups';
+
 
 @Controller()
 export class LeavesController {
@@ -73,6 +82,8 @@ export class LeavesController {
   // LEAVE POLICY
   // ===================================================
   @Post('leave-policy')
+  
+  @Roles(...ADMIN_ROLES)
   createPolicy(@Body() dto: CreatePolicyDto) {
     return this.service.leavePolicy.create(dto);
   }
@@ -88,14 +99,44 @@ export class LeavesController {
   }
 
   @Patch('leave-policy/:id')
+  
+  @Roles(...ADMIN_ROLES)
   updatePolicy(@Param('id') id: string, @Body() dto: UpdatePolicyDto) {
     return this.service.leavePolicy.update(id, dto);
   }
 
+
   @Delete('leave-policy/:id')
+  
+  @Roles(...ADMIN_ROLES)
   removePolicy(@Param('id') id: string) {
     return this.service.leavePolicy.remove(id);
   }
+
+
+  // ===================================================
+// LEAVE CATEGORY
+// ===================================================
+@Post('leave-category')
+createCategory(@Body() dto: CreateLeaveCategoryDto) {
+  return this.service.leaveCategory.create(dto);
+}
+
+@Get('leave-category')
+findAllCategories() {
+  return this.service.leaveCategory.findAll();
+}
+
+@Patch('leave-category/:id')
+updateCategory(@Param('id') id: string, @Body() dto: CreateLeaveCategoryDto) {
+  return this.service.leaveCategory.update(id, dto);
+}
+
+@Delete('leave-category/:id')
+removeCategory(@Param('id') id: string) {
+  return this.service.leaveCategory.remove(id);
+}
+
 
   // ===================================================
   // LEAVE REQUEST
