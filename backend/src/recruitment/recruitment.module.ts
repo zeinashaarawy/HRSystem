@@ -24,15 +24,16 @@ import { PayrollExecutionModule } from '../payroll-execution/payroll-execution.m
 import {
   EmployeeProfileServiceAdapter,
   OrganizationStructureServiceAdapter,
+  TimeManagementServiceAdapter,
 } from './services/adapter-services';
 import { OnboardingService } from './services/onboarding.service';
 import { OnboardingSchedulerService } from './services/onboarding-scheduler.service';
 import { OffboardingService } from './services/offboarding.service';
-import { StubTimeManagementService } from './services/stub-services';
 import { Candidate, CandidateSchema } from '../employee-profile/models/candidate.schema';
 import { EmployeeProfile, EmployeeProfileSchema } from '../employee-profile/models/employee-profile.schema';
 import { PerformanceModule } from '../performance/performance.module';
 import { LeavesModule } from '../leaves/leaves.module';
+import { TimeManagementModule } from '../time-management/time-management.module';
 
 /**
  * RecruitmentModule - Integrated with EmployeeProfile, OrganizationStructure, and Onboarding services.
@@ -65,12 +66,14 @@ import { LeavesModule } from '../leaves/leaves.module';
     PerformanceModule,
     LeavesModule,
     forwardRef(() => PayrollExecutionModule),
+    forwardRef(() => TimeManagementModule),
   ],
   controllers: [RecruitmentController],
   providers: [
     RecruitmentService,
     EmployeeProfileServiceAdapter,
     OrganizationStructureServiceAdapter,
+    TimeManagementServiceAdapter,
     {
       provide: 'IEmployeeProfileService',
       useClass: EmployeeProfileServiceAdapter,
@@ -88,7 +91,7 @@ import { LeavesModule } from '../leaves/leaves.module';
     },
     {
       provide: 'ITimeManagementService',
-      useClass: StubTimeManagementService, // ⚠️ Stub until Time Management module implements calendar methods
+      useClass: TimeManagementServiceAdapter, // ✅ Using real AvailabilityService
     },
   ],
   exports: [RecruitmentService, OnboardingService],
