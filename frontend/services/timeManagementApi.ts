@@ -1,37 +1,14 @@
 import axios from "axios";
 
-// Base URL - automatically detects hostname when running in browser
-// Backend runs on port 5001 (or from env PORT), frontend on port 3001
-// This ensures API calls work when accessing via network IP (e.g., 172.20.10.3:3001)
-// You can override by setting NEXT_PUBLIC_API_URL in frontend/.env.local
+// Base URL - Use relative path in browser to leverage Next.js proxy, full URL server-side
+// Backend runs on port 3001 with /api/v1 prefix
 const getBaseURL = (): string => {
-  // If NEXT_PUBLIC_API_URL is set, use it (highest priority)
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
+  if (typeof window !== "undefined") {
+    // In browser: use relative path to leverage Next.js rewrites
+    return "/api/v1";
   }
-  
-  // If running in browser, use current hostname but with backend port (5001 or from env)
-  // This works for both localhost and network IPs (e.g., 172.20.10.3)
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    // Backend port defaults to 5001, but can be overridden via env
-    // IMPORTANT: Always use port 5001 for backend, not the frontend port
-    // Force port 5001 unless explicitly set via environment variable
-    const backendPort = process.env.NEXT_PUBLIC_BACKEND_PORT || '5001';
-    const baseURL = `http://${hostname}:${backendPort}`;
-    
-    // Log for debugging - always log in development
-    console.log('[API Config] BASE_URL:', baseURL);
-    console.log('[API Config] Frontend URL:', window.location.origin);
-    console.log('[API Config] Frontend Port:', window.location.port);
-    console.log('[API Config] Backend Port:', backendPort);
-    console.log('[API Config] NEXT_PUBLIC_BACKEND_PORT env:', process.env.NEXT_PUBLIC_BACKEND_PORT || 'not set (using default 5001)');
-    
-    return baseURL;
-  }
-  
-  // Server-side fallback (SSR)
-  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+  // Server-side: use full URL
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
 };
 
 const BASE_URL = getBaseURL();
@@ -433,7 +410,7 @@ export const getAllExceptions = (filters?: {
   if (filters?.employeeId) params.append('employeeId', filters.employeeId);
   
   const queryString = params.toString();
-  return TimeManagementAPI.get(`/exceptions${queryString ? `?${queryString}` : ''}`);
+  return TimeManagementAPI.get(`/time-management/exceptions${queryString ? `?${queryString}` : ''}`);
 };
 
 /**

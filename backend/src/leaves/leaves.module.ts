@@ -41,5 +41,6 @@ import { LeavesController } from './leaves.controller';
   ],
   controllers: [LeavesController],
   providers: [LeavesService],
+  exports: [LeavesService], // Export LeavesService so other modules can use it
 })
 export class LeavesModule {}

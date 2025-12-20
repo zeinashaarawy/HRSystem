@@ -1,9 +1,14 @@
 import axios, { AxiosError } from "axios";
 
-export const DEFAULT_API_BASE_URL = "http://localhost:3001";
+// Use relative path in browser to leverage Next.js proxy, full URL server-side
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    return "/api/v1";
+  }
+  return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001/api/v1";
+};
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+const API_BASE_URL = getApiBaseUrl();
 
 const client = axios.create({
   baseURL: `${API_BASE_URL}/payroll-execution`,

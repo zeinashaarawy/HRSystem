@@ -21,7 +21,7 @@ export default function DisputeDetailsPage() {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.get(
-        `http://localhost:3001/performance/disputes/${id}`,
+        `http://localhost:3001/api/v1/performance/disputes/${id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -46,7 +46,7 @@ export default function DisputeDetailsPage() {
       setResolving(true);
       const token = localStorage.getItem("token");
       await axios.patch(
-        `http://localhost:3001/performance/disputes/${id}/resolve`,
+        `http://localhost:3001/api/v1/performance/disputes/${id}/resolve`,
         {
           newStatus: "ADJUSTED",
           resolutionSummary: resolutionSummary,

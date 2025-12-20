@@ -1,22 +1,14 @@
 import axios from 'axios';
 
 // Auto-detect API URL based on current hostname
+// Use relative path in browser to leverage Next.js proxy, full URL server-side
 const getApiBaseUrl = () => {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
+  if (typeof window !== "undefined") {
+    // In browser: use relative path to leverage Next.js rewrites
+    return "/api/v1";
   }
-  
-  // If running in browser, use current hostname with port 5001
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    // If accessing via network IP (172.x.x.x), use that IP for backend too
-    if (hostname.startsWith('172.') || hostname.startsWith('192.') || hostname.startsWith('10.')) {
-      return `http://${hostname}:5001`;
-    }
-  }
-  
-  // Default to localhost
-  return 'http://localhost:5001';
+  // Server-side: use full URL
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
 };
 
 const API_BASE_URL = getApiBaseUrl();

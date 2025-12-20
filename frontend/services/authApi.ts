@@ -1,19 +1,15 @@
 import axios from "axios";
 import { UserRole } from "../utils/auth";
 
-// Base URL - same as timeManagementApi (backend runs on port 5001)
+// Base URL - Use relative path in browser to leverage Next.js proxy, full URL server-side
+// Backend runs on port 3001 with /api/v1 prefix
 const getBaseURL = (): string => {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
+  if (typeof window !== "undefined") {
+    // In browser: use relative path to leverage Next.js rewrites
+    return "/api/v1";
   }
-  
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    const backendPort = process.env.NEXT_PUBLIC_BACKEND_PORT || '5001';
-    return `http://${hostname}:${backendPort}`;
-  }
-  
-  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+  // Server-side: use full URL
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
 };
 
 const BASE_URL = getBaseURL();
