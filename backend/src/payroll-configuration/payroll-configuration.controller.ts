@@ -8,7 +8,14 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { SystemRole } from '../employee-profile/enums/employee-profile.enums';
+
 import { PayrollConfigurationService } from './payroll-configuration.service';
 import { ConfigStatus } from './enums/payroll-configuration-enums';
 import {
@@ -19,17 +26,25 @@ import {
   UpdateInsuranceBracketDto,
 } from './dto/payroll-configuration.dto';
 
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('payroll-configuration')
 export class PayrollConfigurationController {
   constructor(
     private readonly payrollConfigurationService: PayrollConfigurationService,
   ) {}
 
+  // Insurance Brackets
+  @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   @Post('insurance-brackets')
   createInsuranceBracket(@Body() payload: CreateConfigurationDto) {
     return this.payrollConfigurationService.createInsuranceBracket(payload);
   }
 
+  @Roles(
+    SystemRole.DEPARTMENT_HEAD,
+    SystemRole.HR_MANAGER,
+    SystemRole.SYSTEM_ADMIN,
+  )
   @Get('insurance-brackets')
   listInsuranceBrackets(@Query('status') status?: string) {
     const normalizedStatus = this.normalizeStatusFilter(status);
@@ -38,11 +53,17 @@ export class PayrollConfigurationController {
     );
   }
 
+  @Roles(
+    SystemRole.DEPARTMENT_HEAD,
+    SystemRole.HR_MANAGER,
+    SystemRole.SYSTEM_ADMIN,
+  )
   @Get('insurance-brackets/:configId')
   getInsuranceBracket(@Param('configId') configId: string) {
     return this.payrollConfigurationService.getInsuranceBracket(configId);
   }
 
+  @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   @Patch('insurance-brackets/:configId')
   editInsuranceBracket(
     @Param('configId') configId: string,
@@ -54,6 +75,7 @@ export class PayrollConfigurationController {
     );
   }
 
+  @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   @Patch('insurance-brackets/:configId/approve')
   approveInsuranceBracket(
     @Param('configId') configId: string,
@@ -65,6 +87,7 @@ export class PayrollConfigurationController {
     );
   }
 
+  @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   @Patch('insurance-brackets/:configId/reject')
   rejectInsuranceBracket(
     @Param('configId') configId: string,
@@ -76,17 +99,24 @@ export class PayrollConfigurationController {
     );
   }
 
+  @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   @Delete('insurance-brackets/:configId')
   deleteInsuranceBracket(@Param('configId') configId: string) {
     return this.payrollConfigurationService.deleteInsuranceBracket(configId);
   }
 
   // Payroll Policies Configuration Endpoints
+  @Roles(SystemRole.HR_MANAGER)
   @Post('payroll-policies')
   createPayrollPolicy(@Body() payload: CreateConfigurationDto) {
     return this.payrollConfigurationService.createPayrollPolicy(payload);
   }
 
+  @Roles(
+    SystemRole.DEPARTMENT_HEAD,
+    SystemRole.HR_MANAGER,
+    SystemRole.SYSTEM_ADMIN,
+  )
   @Get('payroll-policies')
   listPayrollPolicies(@Query('status') status?: string) {
     const normalizedStatus = this.normalizeStatusFilter(status);
@@ -95,11 +125,17 @@ export class PayrollConfigurationController {
     );
   }
 
+  @Roles(
+    SystemRole.DEPARTMENT_HEAD,
+    SystemRole.HR_MANAGER,
+    SystemRole.SYSTEM_ADMIN,
+  )
   @Get('payroll-policies/:configId')
   getPayrollPolicy(@Param('configId') configId: string) {
     return this.payrollConfigurationService.getPayrollPolicy(configId);
   }
 
+  @Roles(SystemRole.HR_MANAGER)
   @Patch('payroll-policies/:configId')
   updatePayrollPolicy(
     @Param('configId') configId: string,
@@ -112,22 +148,36 @@ export class PayrollConfigurationController {
   }
 
   // Pay Grades Configuration Endpoints
+  @Roles(SystemRole.HR_MANAGER)
   @Post('pay-grades')
   createPayGrade(@Body() payload: CreateConfigurationDto) {
     return this.payrollConfigurationService.createPayGrade(payload);
   }
 
+  @Roles(
+    SystemRole.DEPARTMENT_EMPLOYEE,
+    SystemRole.DEPARTMENT_HEAD,
+    SystemRole.HR_MANAGER,
+    SystemRole.SYSTEM_ADMIN,
+  )
   @Get('pay-grades')
   listPayGrades(@Query('status') status?: string) {
     const normalizedStatus = this.normalizeStatusFilter(status);
     return this.payrollConfigurationService.listPayGrades(normalizedStatus);
   }
 
+  @Roles(
+    SystemRole.DEPARTMENT_EMPLOYEE,
+    SystemRole.DEPARTMENT_HEAD,
+    SystemRole.HR_MANAGER,
+    SystemRole.SYSTEM_ADMIN,
+  )
   @Get('pay-grades/:configId')
   getPayGrade(@Param('configId') configId: string) {
     return this.payrollConfigurationService.getPayGrade(configId);
   }
 
+  @Roles(SystemRole.HR_MANAGER)
   @Patch('pay-grades/:configId')
   updatePayGrade(
     @Param('configId') configId: string,
@@ -136,23 +186,63 @@ export class PayrollConfigurationController {
     return this.payrollConfigurationService.updatePayGrade(configId, payload);
   }
 
-  // Pay Types Configuration Endpoints
+  @Roles(SystemRole.HR_MANAGER)
+  @Patch('pay-grades/:configId/approve')
+  approvePayGrade(
+    @Param('configId') configId: string,
+    @Body() { approverId }: ApproveInsuranceBracketDto,
+  ) {
+    return this.payrollConfigurationService.approveConfiguration(
+      'payGrade',
+      configId,
+      approverId,
+    );
+  }
+
+  @Roles(SystemRole.HR_MANAGER)
+  @Patch('pay-grades/:configId/reject')
+  rejectPayGrade(
+    @Param('configId') configId: string,
+    @Body() { reviewerId }: RejectInsuranceBracketDto,
+  ) {
+    return this.payrollConfigurationService.rejectConfiguration(
+      'payGrade',
+      configId,
+      reviewerId,
+    );
+  }
+
+  // Pay Types Configuration Endpoin  // Pay Types Configuration Endpoints
+  @Roles(SystemRole.HR_MANAGER)
   @Post('pay-types')
   createPayType(@Body() payload: CreateConfigurationDto) {
     return this.payrollConfigurationService.createPayType(payload);
   }
 
+  @Roles(
+    SystemRole.DEPARTMENT_EMPLOYEE,
+    SystemRole.DEPARTMENT_HEAD,
+    SystemRole.HR_MANAGER,
+    SystemRole.SYSTEM_ADMIN,
+  )
   @Get('pay-types')
   listPayTypes(@Query('status') status?: string) {
     const normalizedStatus = this.normalizeStatusFilter(status);
     return this.payrollConfigurationService.listPayTypes(normalizedStatus);
   }
 
+  @Roles(
+    SystemRole.DEPARTMENT_EMPLOYEE,
+    SystemRole.DEPARTMENT_HEAD,
+    SystemRole.HR_MANAGER,
+    SystemRole.SYSTEM_ADMIN,
+  )
   @Get('pay-types/:configId')
   getPayType(@Param('configId') configId: string) {
     return this.payrollConfigurationService.getPayType(configId);
   }
 
+  @Roles(SystemRole.HR_MANAGER)
   @Patch('pay-types/:configId')
   updatePayType(
     @Param('configId') configId: string,
@@ -162,22 +252,36 @@ export class PayrollConfigurationController {
   }
 
   // Allowance Configuration Endpoints
+  @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.HR_MANAGER)
   @Post('allowances')
   createAllowance(@Body() payload: CreateConfigurationDto) {
     return this.payrollConfigurationService.createAllowance(payload);
   }
 
+  @Roles(
+    SystemRole.DEPARTMENT_EMPLOYEE,
+    SystemRole.DEPARTMENT_HEAD,
+    SystemRole.HR_MANAGER,
+    SystemRole.SYSTEM_ADMIN,
+  )
   @Get('allowances')
   listAllowances(@Query('status') status?: string) {
     const normalizedStatus = this.normalizeStatusFilter(status);
     return this.payrollConfigurationService.listAllowances(normalizedStatus);
   }
 
+  @Roles(
+    SystemRole.DEPARTMENT_EMPLOYEE,
+    SystemRole.DEPARTMENT_HEAD,
+    SystemRole.HR_MANAGER,
+    SystemRole.SYSTEM_ADMIN,
+  )
   @Get('allowances/:configId')
   getAllowance(@Param('configId') configId: string) {
     return this.payrollConfigurationService.getAllowance(configId);
   }
 
+  @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.HR_MANAGER)
   @Patch('allowances/:configId')
   updateAllowance(
     @Param('configId') configId: string,
@@ -186,12 +290,44 @@ export class PayrollConfigurationController {
     return this.payrollConfigurationService.updateAllowance(configId, payload);
   }
 
-  // Signing Bonus Configuration Endpoints
+  @Roles(SystemRole.HR_MANAGER)
+  @Patch('allowances/:configId/approve')
+  approveAllowance(
+    @Param('configId') configId: string,
+    @Body() { approverId }: ApproveInsuranceBracketDto,
+  ) {
+    return this.payrollConfigurationService.approveConfiguration(
+      'allowance',
+      configId,
+      approverId,
+    );
+  }
+
+  @Roles(SystemRole.HR_MANAGER)
+  @Patch('allowances/:configId/reject')
+  rejectAllowance(
+    @Param('configId') configId: string,
+    @Body() { reviewerId }: RejectInsuranceBracketDto,
+  ) {
+    return this.payrollConfigurationService.rejectConfiguration(
+      'allowance',
+      configId,
+      reviewerId,
+    );
+  }
+
+  // Signing Bonus Configu  // Signing Bonus Configuration Endpoints
+  @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.HR_MANAGER)
   @Post('signing-bonuses')
   createSigningBonus(@Body() payload: CreateConfigurationDto) {
     return this.payrollConfigurationService.createSigningBonus(payload);
   }
 
+  @Roles(
+    SystemRole.DEPARTMENT_HEAD,
+    SystemRole.HR_MANAGER,
+    SystemRole.SYSTEM_ADMIN,
+  )
   @Get('signing-bonuses')
   listSigningBonuses(@Query('status') status?: string) {
     const normalizedStatus = this.normalizeStatusFilter(status);
@@ -200,11 +336,17 @@ export class PayrollConfigurationController {
     );
   }
 
+  @Roles(
+    SystemRole.DEPARTMENT_HEAD,
+    SystemRole.HR_MANAGER,
+    SystemRole.SYSTEM_ADMIN,
+  )
   @Get('signing-bonuses/:configId')
   getSigningBonus(@Param('configId') configId: string) {
     return this.payrollConfigurationService.getSigningBonus(configId);
   }
 
+  @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.HR_MANAGER)
   @Patch('signing-bonuses/:configId')
   updateSigningBonus(
     @Param('configId') configId: string,
@@ -217,6 +359,7 @@ export class PayrollConfigurationController {
   }
 
   // Termination and Resignation Benefits Configuration Endpoints
+  @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.HR_MANAGER)
   @Post('termination-resignation-benefits')
   createTerminationResignationBenefits(@Body() payload: CreateConfigurationDto) {
     return this.payrollConfigurationService.createTerminationResignationBenefits(
@@ -224,6 +367,11 @@ export class PayrollConfigurationController {
     );
   }
 
+  @Roles(
+    SystemRole.DEPARTMENT_HEAD,
+    SystemRole.HR_MANAGER,
+    SystemRole.SYSTEM_ADMIN,
+  )
   @Get('termination-resignation-benefits')
   listTerminationResignationBenefits(@Query('status') status?: string) {
     const normalizedStatus = this.normalizeStatusFilter(status);
@@ -232,6 +380,11 @@ export class PayrollConfigurationController {
     );
   }
 
+  @Roles(
+    SystemRole.DEPARTMENT_HEAD,
+    SystemRole.HR_MANAGER,
+    SystemRole.SYSTEM_ADMIN,
+  )
   @Get('termination-resignation-benefits/:configId')
   getTerminationResignationBenefits(@Param('configId') configId: string) {
     return this.payrollConfigurationService.getTerminationResignationBenefits(
@@ -239,6 +392,7 @@ export class PayrollConfigurationController {
     );
   }
 
+  @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.HR_MANAGER)
   @Patch('termination-resignation-benefits/:configId')
   updateTerminationResignationBenefits(
     @Param('configId') configId: string,
@@ -250,27 +404,58 @@ export class PayrollConfigurationController {
     );
   }
 
+  @Roles(SystemRole.HR_MANAGER)
+  @Patch('termination-resignation-benefits/:configId/approve')
+  approveTerminationResignationBenefits(
+    @Param('configId') configId: string,
+    @Body() { approverId }: ApproveInsuranceBracketDto,
+  ) {
+    return this.payrollConfigurationService.approveConfiguration(
+      'terminationAndResignationBenefits',
+      configId,
+      approverId,
+    );
+  }
+
+  @Roles(SystemRole.HR_MANAGER)
+  @Patch('termination-resignation-benefits/:configId/reject')
+  rejectTerminationResignationBenefits(
+    @Param('configId') configId: string,
+    @Body() { reviewerId }: RejectInsuranceBracketDto,
+  ) {
+    return this.payrollConfigurationService.rejectConfiguration(
+      'terminationAndResignationBenefits',
+      configId,
+      reviewerId,
+    );
+  }
+
   // Company-Wide Settings Configuration Endpoints
+  @Roles(SystemRole.SYSTEM_ADMIN)
   @Post('company-wide-settings')
   createCompanyWideSettings(@Body() payload: CreateConfigurationDto) {
     return this.payrollConfigurationService.createCompanyWideSettings(payload);
   }
 
+  @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   @Get('company-wide-settings/active')
   getActiveCompanyWideSettings() {
     return this.payrollConfigurationService.getActiveCompanyWideSettings();
   }
 
+  @Roles(SystemRole.SYSTEM_ADMIN)
   @Get('company-wide-settings')
   listCompanyWideSettings() {
     return this.payrollConfigurationService.listCompanyWideSettings();
   }
 
+  @Roles(SystemRole.SYSTEM_ADMIN)
   @Get('company-wide-settings/:configId')
   getCompanyWideSettings(@Param('configId') configId: string) {
     return this.payrollConfigurationService.getCompanyWideSettings(configId);
   }
 
+  @Roles(SystemRole.SYSTEM_ADMIN)
   @Patch('company-wide-settings/:configId')
   updateCompanyWideSettings(
     @Param('configId') configId: string,
@@ -283,22 +468,36 @@ export class PayrollConfigurationController {
   }
 
   // Tax Rules Configuration Endpoints
+  @Roles(SystemRole.SYSTEM_ADMIN)
   @Post('tax-rules')
   createTaxRule(@Body() payload: CreateConfigurationDto) {
     return this.payrollConfigurationService.createTaxRule(payload);
   }
 
+  @Roles(
+    SystemRole.DEPARTMENT_EMPLOYEE,
+    SystemRole.DEPARTMENT_HEAD,
+    SystemRole.HR_MANAGER,
+    SystemRole.SYSTEM_ADMIN,
+  )
   @Get('tax-rules')
   listTaxRules(@Query('status') status?: string) {
     const normalizedStatus = this.normalizeStatusFilter(status);
     return this.payrollConfigurationService.listTaxRules(normalizedStatus);
   }
 
+  @Roles(
+    SystemRole.DEPARTMENT_EMPLOYEE,
+    SystemRole.DEPARTMENT_HEAD,
+    SystemRole.HR_MANAGER,
+    SystemRole.SYSTEM_ADMIN,
+  )
   @Get('tax-rules/:configId')
   getTaxRule(@Param('configId') configId: string) {
     return this.payrollConfigurationService.getTaxRule(configId);
   }
 
+  @Roles(SystemRole.SYSTEM_ADMIN)
   @Patch('tax-rules/:configId')
   updateTaxRule(
     @Param('configId') configId: string,

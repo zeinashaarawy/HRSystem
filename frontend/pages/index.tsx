@@ -38,7 +38,7 @@ const modules = [
     desc: "Salary structures, allowances, deductions, tax rules, and payroll settings.",
     icon: <DollarSign className="w-8 h-8" />,
     gradient: "from-blue-600 to-indigo-600",
-    route: "/subsystems/payroll-configuration",
+    route: "/payroll-configuration",
   },
   {
     name: "Payroll Execution",

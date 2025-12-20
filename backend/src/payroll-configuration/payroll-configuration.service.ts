@@ -95,6 +95,7 @@ export class PayrollConfigurationService {
     configId: string,
     approverId: string,
   ) {
+    // Insurance brackets use dedicated logic (extra safety rules)
     if (collection === 'insuranceBrackets') {
       return this.approveInsuranceBracket(configId, approverId);
     }
@@ -123,6 +124,41 @@ export class PayrollConfigurationService {
     }
 
     return approvedDoc;
+  }
+
+  async rejectConfiguration(
+    collection: string,
+    configId: string,
+    reviewerId: string,
+  ) {
+    // Insurance brackets use dedicated logic (extra safety rules)
+    if (collection === 'insuranceBrackets') {
+      return this.rejectInsuranceBracket(configId, reviewerId);
+    }
+
+    if (!reviewerId) {
+      throw new BadRequestException('reviewerId is required');
+    }
+
+    const model = this.getModel(collection);
+    const doc = await model.findById(configId);
+
+    if (!doc) {
+      throw new NotFoundException(
+        `Configuration ${configId} not found in ${collection}`,
+      );
+    }
+
+    if (doc.status === ConfigStatus.REJECTED) {
+      throw new BadRequestException('Configuration already rejected.');
+    }
+
+    doc.status = ConfigStatus.REJECTED;
+    doc.approvedBy = undefined;
+    doc.approvedAt = undefined;
+
+    await doc.save();
+    return doc.toObject();
   }
 
   async deleteConfiguration(collection: string, configId: string) {

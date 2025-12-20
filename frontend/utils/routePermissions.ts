@@ -149,6 +149,26 @@ export const ROUTE_PERMISSIONS: Record<string, SystemRole[]> = {
     "DEPARTMENT_HEAD",
     "DEPARTMENT_EMPLOYEE",
   ],
+  
+  // Payroll Configuration - HR, Payroll, Finance, and Admin roles
+  "/payroll-configuration": [
+    "SYSTEM_ADMIN",
+    "HR_MANAGER",
+    "HR_EMPLOYEE",
+    "HR_ADMIN",
+    "DEPARTMENT_HEAD",
+    "DEPARTMENT_EMPLOYEE",
+  ],
+  
+  // Payroll Configuration sub-routes
+  "/payroll-configuration/*": [
+    "SYSTEM_ADMIN",
+    "HR_MANAGER",
+    "HR_EMPLOYEE",
+    "HR_ADMIN",
+    "DEPARTMENT_HEAD",
+    "DEPARTMENT_EMPLOYEE",
+  ],
 };
 
 /**
