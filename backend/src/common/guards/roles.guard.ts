@@ -29,7 +29,9 @@ export class RolesGuard implements CanActivate {
     }
 
     if (!requiredRoles.includes(user.role)) {
-      throw new ForbiddenException('You do not have permission');
+      throw new ForbiddenException(
+        `Access denied: Required roles: ${requiredRoles.join(', ')}, Your role: ${user.role}`
+      );
     }
 
     return true;

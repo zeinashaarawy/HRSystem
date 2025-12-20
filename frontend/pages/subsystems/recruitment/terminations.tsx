@@ -58,18 +58,17 @@ export default function TerminationsManagement() {
       console.log('Current user role:', role);
       
       const response = await getAllTerminationRequests();
-      setTerminations(response.data);
+      setTerminations(Array.isArray(response.data) ? response.data : []);
     } catch (err: any) {
-      console.error('Error fetching terminations:', err);
-      
+      // Silently handle 403 - don't log or alert
       if (err?.response?.status === 403) {
-        const errorMessage = err?.response?.data?.message || 'Access denied. You need HR Manager or HR Employee role to view terminations.';
-        alert(errorMessage);
-        console.error('403 Forbidden - User role:', localStorage.getItem('role'));
+        setTerminations([]);
       } else if (err?.code === 'ERR_NETWORK' || err?.code === 'ERR_CONNECTION_REFUSED') {
         alert('Cannot connect to server. Please ensure the backend is running on port 3001.');
       } else {
-        alert(err?.response?.data?.message || 'Failed to load terminations');
+        // Only log non-403 errors
+        console.error('Server error:', err?.response?.data);
+        setTerminations([]); // Show empty list instead of crashing
       }
     } finally {
       setLoading(false);

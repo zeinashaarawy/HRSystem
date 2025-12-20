@@ -37,8 +37,19 @@ export default function OnboardingTracker() {
       setOnboarding(response.data);
       setError(null);
     } catch (err: any) {
-      console.error('Error fetching onboarding:', err);
-      setError(err?.response?.data?.message || 'Failed to load onboarding tasks');
+      // Don't log or show error if it's a 404 - candidates/employees may not have onboarding yet
+      if (err?.response?.status === 404) {
+        setError(null);
+        setOnboarding(null);
+      } else if (err?.code === 'ERR_NETWORK' || err?.message?.includes('Network Error')) {
+        // Handle network errors gracefully
+        setError('Cannot connect to the server. Please ensure the backend is running on port 3001.');
+        setOnboarding(null);
+      } else {
+        // Only log non-404 errors
+        console.error('Error fetching onboarding:', err);
+        setError(err?.response?.data?.message || 'Failed to load onboarding tasks');
+      }
     } finally {
       setLoading(false);
     }
@@ -142,7 +153,24 @@ export default function OnboardingTracker() {
           <p className="text-lg text-red-300">{error}</p>
           <Link
             href="/subsystems/recruitment"
-            className="text-blue-300 hover:text-blue-200 underline"
+            className="inline-block text-blue-300 hover:text-blue-200 underline"
+          >
+            ← Back to Recruitment
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!onboarding) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <p className="text-lg text-slate-300">No onboarding tasks found for your account.</p>
+          <p className="text-sm text-slate-400">Onboarding tasks will appear here once your offer is accepted and processed.</p>
+          <Link
+            href="/subsystems/recruitment"
+            className="inline-block text-blue-300 hover:text-blue-200 underline"
           >
             ← Back to Recruitment
           </Link>

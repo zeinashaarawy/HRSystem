@@ -45,7 +45,7 @@ export default function OnboardingTracker() {
         setOnboarding(null);
       } else if (err?.code === 'ERR_NETWORK' || err?.message?.includes('Network Error')) {
         // Handle network errors gracefully
-        setError('Cannot connect to the server. Please ensure the backend is running on port 4000.');
+        setError('Cannot connect to the server. Please ensure the backend is running on port 3001.');
         setOnboarding(null);
       } else {
         // Only log non-404 errors
@@ -168,12 +168,13 @@ export default function OnboardingTracker() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white flex items-center justify-center">
         <div className="text-center space-y-4">
-          <p className="text-lg">No onboarding tasks found.</p>
+          <p className="text-lg text-slate-300">No onboarding tasks found for your account.</p>
+          <p className="text-sm text-slate-400">Onboarding tasks will appear here once your offer is accepted and processed by HR.</p>
           <Link
             href="/subsystems/onboarding"
-            className="text-blue-300 hover:text-blue-200 underline"
+            className="inline-block text-blue-300 hover:text-blue-200 underline"
           >
-            ← Back to Recruitment
+            ← Back to Onboarding
           </Link>
         </div>
       </div>

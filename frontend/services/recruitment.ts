@@ -169,6 +169,11 @@ export interface Onboarding {
   completedAt?: string;
 }
 
+export async function getAllOnboarding(): Promise<{ data: Onboarding[] }> {
+  const response = await apiClient.get('/onboarding');
+  return { data: Array.isArray(response.data) ? response.data : [] };
+}
+
 export async function getOnboardingByEmployee(employeeId: string): Promise<{ data: Onboarding }> {
   return apiClient.get(`/onboarding/employee/${employeeId}`);
 }
@@ -382,9 +387,7 @@ export async function getEmployeeLeaveBalance(
   return apiClient.get(`/termination-requests/employee/${employeeId}/leave-balance`);
 }
 
-export async function revokeSystemAccess(
-  employeeId: string,
-): Promise<{ data: { message: string } }> {
+export async function revokeSystemAccess(employeeId: string): Promise<{ data: any }> {
   return apiClient.post(`/termination-requests/employee/${employeeId}/revoke-access`);
 }
 

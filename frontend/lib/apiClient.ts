@@ -53,6 +53,12 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Silently ignore 403 errors - these are expected for role-based access control
+    if (error?.response?.status === 403) {
+      // Don't log anything for 403 errors
+      return Promise.reject(error);
+    }
+    
     if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
       console.error(
         "🌐 Network Error: Cannot connect to backend server.",

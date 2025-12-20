@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
     "@nestjs/schedule": "^6.1.0",
     "@nextui-org/react": "^2.6.11",
     "axios": "^1.13.2",
@@ -17,8 +18,10 @@
     "next-auth": "^4.24.13",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "react-hook-form": "^7.68.0",
     "react-icons": "^5.5.0",
-    "reflect-metadata": "^0.2.2"
+    "reflect-metadata": "^0.2.2",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@types/node": "^20",

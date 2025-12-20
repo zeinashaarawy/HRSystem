@@ -21,6 +21,13 @@ export default function OnboardingTracking() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Check if user has access
+    const role = localStorage.getItem('role');
+    if (role !== 'HR Manager' && role !== 'HR Employee' && role !== 'HR_MANAGER' && role !== 'HR_EMPLOYEE') {
+      setError('Access denied. Only HR Manager and HR Employee can view this page.');
+      setLoading(false);
+      return;
+    }
     fetchAllOnboarding();
   }, []);
 
@@ -58,8 +65,13 @@ export default function OnboardingTracking() {
       setNewHires(newHiresData);
       setError(null);
     } catch (err: any) {
-      console.error('Error fetching onboarding:', err);
-      setError(err?.response?.data?.message || 'Failed to load onboarding data');
+      // Silently handle 403 - user doesn't have access
+      if (err?.response?.status === 403) {
+        setError('Access denied. You need HR Manager or HR Employee role to view this page.');
+      } else {
+        console.error('Error fetching onboarding:', err);
+        setError(err?.response?.data?.message || 'Failed to load onboarding data');
+      }
     } finally {
       setLoading(false);
     }

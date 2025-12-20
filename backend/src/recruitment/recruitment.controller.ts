@@ -110,7 +110,7 @@ export class RecruitmentController {
       description: 'Job template created successfully',
     })
     @ApiResponse({ status: 400, description: 'Validation failed (BR2)' })
-    @Roles('hr_manager')
+    @Roles('HR Manager')
     @Post('templates')
     @HttpCode(HttpStatus.CREATED)
     @UsePipes(new ValidationPipe({ transform: true }))
@@ -141,7 +141,7 @@ export class RecruitmentController {
     @ApiParam({ name: 'id', description: 'Job template ID' })
     @ApiResponse({ status: 200, description: 'Template updated' })
     @ApiResponse({ status: 404, description: 'Template not found' })
-    @Roles('hr_manager')
+    @Roles('HR Manager')
     @Put('templates/:id')
     @UsePipes(new ValidationPipe({ transform: true }))
     async updateTemplate(
@@ -156,7 +156,7 @@ export class RecruitmentController {
     @ApiParam({ name: 'id', description: 'Job template ID' })
     @ApiResponse({ status: 200, description: 'Template deleted' })
     @ApiResponse({ status: 404, description: 'Template not found' })
-    @Roles('hr_manager')
+    @Roles('HR Manager')
     @Delete('templates/:id')
     @HttpCode(HttpStatus.NO_CONTENT)
     async deleteTemplate(@Param('id') id: string) {
@@ -175,7 +175,7 @@ export class RecruitmentController {
     })
     @ApiResponse({ status: 201, description: 'Job requisition created' })
     @ApiResponse({ status: 400, description: 'Validation failed' })
-    @Roles('hr_manager')
+    @Roles('HR Manager')
     @Post('jobs')
     @HttpCode(HttpStatus.CREATED)
     @UsePipes(new ValidationPipe({ transform: true }))
@@ -219,7 +219,7 @@ export class RecruitmentController {
     @ApiResponse({ status: 200, description: 'Job published successfully' })
     @ApiResponse({ status: 400, description: 'Job already published' })
     @ApiResponse({ status: 404, description: 'Job not found' })
-    @Roles('hr_employee', 'hr_manager')
+    @Roles('HR Employee', 'HR Manager')
     @Post('jobs/:id/publish')
     async publishJob(@Param('id') id: string) {
       return this.recruitmentService.publishJobRequisition(id);
@@ -230,7 +230,7 @@ export class RecruitmentController {
     @ApiParam({ name: 'id', description: 'Job requisition ID' })
     @ApiResponse({ status: 200, description: 'Job updated' })
     @ApiResponse({ status: 404, description: 'Job not found' })
-    @Roles('hr_manager')
+    @Roles('HR Manager')
     @Put('jobs/:id')
     @UsePipes(new ValidationPipe({ transform: true }))
     async updateJob(
@@ -367,7 +367,7 @@ export class RecruitmentController {
       description: 'Rejection notification sent',
     })
     @ApiResponse({ status: 404, description: 'Application not found' })
-    @Roles('hr_employee', 'hr_manager')
+    @Roles('HR Employee', 'HR Manager')
     @Post('applications/:id/reject')
     @UsePipes(new ValidationPipe({ transform: true }))
     async notifyCandidate(
@@ -396,7 +396,7 @@ export class RecruitmentController {
       description: 'Interview scheduled successfully',
     })
     @ApiResponse({ status: 400, description: 'Validation failed (BR19)' })
-    @Roles('hr_employee', 'hr_manager')
+    @Roles('HR Employee', 'HR Manager')
     @Post('interviews')
     @HttpCode(HttpStatus.CREATED)
     @UsePipes(new ValidationPipe({ transform: true }))
@@ -451,7 +451,7 @@ export class RecruitmentController {
       description: 'Interviewer not in panel (BR22)',
     })
     @ApiResponse({ status: 404, description: 'Interview not found' })
-    @Roles('hr_employee', 'hr_manager')
+    @Roles('HR Employee', 'HR Manager')
     @Post('interviews/:id/feedback')
     @HttpCode(HttpStatus.CREATED)
     @UsePipes(new ValidationPipe({ transform: true }))
@@ -479,7 +479,7 @@ export class RecruitmentController {
     })
     @ApiResponse({ status: 201, description: 'Candidate tagged as referral' })
     @ApiResponse({ status: 400, description: 'Validation failed' })
-    @Roles('hr_employee', 'hr_manager')
+    @Roles('HR Employee', 'HR Manager')
     @Post('referrals')
     @HttpCode(HttpStatus.CREATED)
     @UsePipes(new ValidationPipe({ transform: true }))
@@ -521,7 +521,7 @@ export class RecruitmentController {
       status: 400,
       description: 'Application not at offer stage',
     })
-    @Roles('hr_employee', 'hr_manager')
+    @Roles('HR Employee', 'HR Manager')
     @Post('offers')
     @HttpCode(HttpStatus.CREATED)
     @UsePipes(new ValidationPipe({ transform: true }))
@@ -561,7 +561,7 @@ export class RecruitmentController {
     @ApiBody({ type: ApproveOfferDto })
     @ApiResponse({ status: 200, description: 'Offer approved' })
     @ApiResponse({ status: 404, description: 'Offer not found' })
-    @Roles('hr_manager')
+    @Roles('HR Manager')
     @Post('offers/:id/approve')
     @UsePipes(new ValidationPipe({ transform: true }))
     async approveOffer(@Param('id') id: string, @Body() dto: ApproveOfferDto) {
@@ -701,6 +701,18 @@ export class RecruitmentController {
 
     @ApiTags('onboarding')
     @ApiOperation({
+      summary: 'Get all onboarding records (HR Manager/HR Employee/System Admin)',
+      description: 'Get all onboarding records for tracking new hire progress. System Admin needs this to provision access.',
+    })
+    @ApiResponse({ status: 200, description: 'Onboarding records found' })
+    @Roles('HR Manager', 'HR Employee', 'System Admin')
+    @Get('onboarding')
+    async getAllOnboarding() {
+      return this.onboardingService.getAllOnboarding();
+    }
+
+    @ApiTags('onboarding')
+    @ApiOperation({
       summary: 'Get onboarding by employee ID',
       description: 'New Hire views their onboarding steps in a tracker',
     })
@@ -732,7 +744,7 @@ export class RecruitmentController {
     })
     @ApiBody({ type: CreateOnboardingChecklistDto })
     @ApiResponse({ status: 201, description: 'Checklist created' })
-    @Roles('hr_manager')
+    @Roles('HR Manager')
     @Post('onboarding/checklists')
     @HttpCode(HttpStatus.CREATED)
     @UsePipes(new ValidationPipe({ transform: true }))
@@ -822,7 +834,7 @@ export class RecruitmentController {
     @ApiParam({ name: 'offerId', description: 'Offer ID' })
     @ApiResponse({ status: 200, description: 'Contract found' })
     @ApiResponse({ status: 404, description: 'Contract not found' })
-    @Roles('hr_manager')
+    @Roles('HR Manager')
     @Get('contracts/offer/:offerId')
     async getContractByOffer(@Param('offerId') offerId: string) {
       return this.onboardingService.getContractByOfferId(offerId);
@@ -850,7 +862,7 @@ export class RecruitmentController {
     @ApiParam({ name: 'taskIndex', description: 'Task index (0-based)' })
     @ApiBody({ type: ReserveEquipmentDto })
     @ApiResponse({ status: 200, description: 'Equipment reserved' })
-    @Roles('hr_employee', 'hr_manager')
+    @Roles('HR Employee', 'HR Manager')
     @Post('onboarding/:id/tasks/:taskIndex/reserve-equipment')
     @UsePipes(new ValidationPipe({ transform: true }))
     async reserveEquipment(
@@ -898,7 +910,7 @@ export class RecruitmentController {
     })
     @ApiBody({ type: InitiateTerminationReviewDto })
     @ApiResponse({ status: 201, description: 'Termination review initiated' })
-    @Roles('hr_manager')
+    @Roles('HR Manager')
     @Post('termination-requests/review')
     @HttpCode(HttpStatus.CREATED)
     @UsePipes(new ValidationPipe({ transform: true }))
@@ -909,10 +921,10 @@ export class RecruitmentController {
     @ApiTags('offboarding')
     @ApiOperation({
       summary: 'Get all termination requests',
-      description: 'HR Manager views all termination requests',
+      description: 'HR Manager and System Admin view all termination requests. System Admin needs this to revoke access.',
     })
     @ApiResponse({ status: 200, description: 'Termination requests found' })
-    @Roles('hr_manager', 'hr_employee', 'hr_admin')
+    @Roles('HR Manager', 'HR Employee', 'HR Admin', 'System Admin')
     @Get('termination-requests')
     async getAllTerminationRequests() {
       return this.offboardingService.getAllTerminationRequests();
@@ -937,7 +949,7 @@ export class RecruitmentController {
     })
     @ApiParam({ name: 'id', description: 'Termination request ID' })
     @ApiResponse({ status: 200, description: 'Termination approved' })
-    @Roles('hr_manager')
+    @Roles('HR Manager')
     @Post('termination-requests/:id/approve')
     @UsePipes(new ValidationPipe({ transform: true }))
     async approveTermination(@Param('id') id: string) {
@@ -1013,7 +1025,7 @@ export class RecruitmentController {
     })
     @ApiParam({ name: 'employeeId', description: 'Employee ID' })
     @ApiResponse({ status: 200, description: 'Performance data found' })
-    @Roles('hr_manager')
+    @Roles('HR Manager')
     @Get('termination-requests/employee/:employeeId/performance')
     async getEmployeePerformanceData(@Param('employeeId') employeeId: string) {
       return this.offboardingService.getEmployeePerformanceData(employeeId);
@@ -1026,7 +1038,7 @@ export class RecruitmentController {
     })
     @ApiParam({ name: 'employeeId', description: 'Employee ID' })
     @ApiResponse({ status: 200, description: 'Leave balance found' })
-    @Roles('hr_manager', 'hr_employee')
+    @Roles('HR Manager', 'HR Employee')
     @Get('termination-requests/employee/:employeeId/leave-balance')
     async getEmployeeLeaveBalance(@Param('employeeId') employeeId: string) {
       return this.offboardingService.getEmployeeLeaveBalance(employeeId);
@@ -1034,12 +1046,12 @@ export class RecruitmentController {
 
     @ApiTags('offboarding')
     @ApiOperation({
-      summary: 'Revoke system access (System Admin)',
-      description: 'Revoke system and account access upon termination. This disables the user account, invalidates tokens, and revokes all system access.',
+      summary: 'Revoke system access (System Admin only)',
+      description: 'System Admin revokes system and account access upon termination. This disables the user account, invalidates tokens, and revokes all system access.',
     })
     @ApiParam({ name: 'employeeId', description: 'Employee ID' })
     @ApiResponse({ status: 200, description: 'System access revoked' })
-    @Roles('system_admin')
+    @Roles('System Admin')
     @Post('termination-requests/employee/:employeeId/revoke-access')
     async revokeSystemAccess(@Param('employeeId') employeeId: string) {
       await this.offboardingService.revokeSystemAccess(employeeId);
@@ -1052,12 +1064,12 @@ export class RecruitmentController {
 
     @ApiTags('onboarding')
     @ApiOperation({
-      summary: 'Trigger system access provisioning (System Admin) - ONB-009',
+      summary: 'Trigger system access provisioning (System Admin only) - ONB-009',
       description: 'System Admin triggers actual provisioning of email, SSO, payroll, and internal system access for a new hire.',
     })
     @ApiParam({ name: 'employeeId', description: 'Employee ID' })
     @ApiResponse({ status: 200, description: 'Provisioning triggered' })
-    @Roles('system_admin')
+    @Roles('System Admin')
     @Post('onboarding/employee/:employeeId/provision-access')
     async provisionSystemAccess(@Param('employeeId') employeeId: string) {
       return this.onboardingService.provisionSystemAccess(employeeId);
@@ -1071,7 +1083,7 @@ export class RecruitmentController {
     @ApiParam({ name: 'employeeId', description: 'Employee ID' })
     @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } }, required: ['reason'] } })
     @ApiResponse({ status: 200, description: 'Onboarding cancelled and employee profile terminated' })
-    @Roles('hr_manager')
+    @Roles('HR Manager')
     @Post('onboarding/employee/:employeeId/cancel-no-show')
     async cancelOnboardingForNoShow(
       @Param('employeeId') employeeId: string,
@@ -1088,7 +1100,7 @@ export class RecruitmentController {
     })
     @ApiParam({ name: 'employeeId', description: 'Employee ID' })
     @ApiResponse({ status: 200, description: 'Document verification result' })
-    @Roles('hr_manager', 'hr_employee')
+    @Roles('HR Manager', 'HR Employee')
     @Get('onboarding/employee/:employeeId/verify-documents')
     async verifyDocumentsBeforeStartDate(@Param('employeeId') employeeId: string) {
       return this.onboardingService.verifyDocumentsBeforeStartDate(employeeId);

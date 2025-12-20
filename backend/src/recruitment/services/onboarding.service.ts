@@ -233,19 +233,45 @@ export class OnboardingService implements IOnboardingService {
   }
 
   /**
+   * Get all onboarding records
+   */
+  async getAllOnboarding(): Promise<Onboarding[]> {
+    try {
+      const onboardings = await this.onboardingModel
+        .find()
+        .populate('employeeId', '_id employeeNumber firstName lastName workEmail personalEmail')
+        .populate('contractId')
+        .exec();
+      return onboardings;
+    } catch (error) {
+      this.logger.error(`Error fetching all onboarding records: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * Get onboarding by employee ID
    */
   async getOnboardingByEmployeeId(employeeId: string): Promise<Onboarding> {
-    const onboarding = await this.onboardingModel
-      .findOne({ employeeId: new Types.ObjectId(employeeId) })
-      .populate('contractId')
-      .exec();
+    try {
+      const onboarding = await this.onboardingModel
+        .findOne({ employeeId: new Types.ObjectId(employeeId) })
+        .populate('contractId')
+        .exec();
 
-    if (!onboarding) {
+      if (!onboarding) {
+        throw new NotFoundException(`Onboarding not found for employee ${employeeId}`);
+      }
+
+      return onboarding;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      // Log the error but throw a clean NotFoundException
+      this.logger.warn(`Error fetching onboarding for employee ${employeeId}: ${error.message}`);
       throw new NotFoundException(`Onboarding not found for employee ${employeeId}`);
     }
-
-    return onboarding;
   }
 
   /**

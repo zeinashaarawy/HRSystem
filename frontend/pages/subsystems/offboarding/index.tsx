@@ -44,7 +44,7 @@ export default function Offboarding() {
   
   // HR Manager only sections (additional features)
   const hrManagerOnlySections = [
-    { href: '/subsystems/offboarding/terminations', title: 'Benefits & Final Pay', desc: 'Trigger benefits termination and final pay calculations' },
+    { href: '/subsystems/offboarding/terminations-benefits', title: 'Benefits & Final Pay', desc: 'Trigger benefits termination and final pay calculations' },
   ];
 
   // System Admin sections

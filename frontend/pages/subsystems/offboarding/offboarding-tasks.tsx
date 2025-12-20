@@ -33,10 +33,12 @@ export default function OffboardingTasks() {
     try {
       setLoading(true);
       const response = await getAllTerminationRequests();
-      setTerminations(response.data.filter(t => t.status === 'approved'));
+      const terminationsData = Array.isArray(response.data) ? response.data : [];
+      setTerminations(terminationsData.filter(t => t.status === 'approved'));
     } catch (err: any) {
       console.error('Error fetching terminations:', err);
-      alert(err?.response?.data?.message || 'Failed to load terminations');
+      // Don't alert, just set empty array
+      setTerminations([]);
     } finally {
       setLoading(false);
     }

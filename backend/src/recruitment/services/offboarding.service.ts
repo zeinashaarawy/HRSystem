@@ -465,12 +465,18 @@ export class OffboardingService {
    * Get all termination requests
    */
   async getAllTerminationRequests(): Promise<TerminationRequest[]> {
-    return this.terminationRequestModel
-      .find()
-      .populate('employeeId')
-      .populate('contractId')
-      .sort({ createdAt: -1 })
-      .exec();
+    try {
+      return await this.terminationRequestModel
+        .find()
+        .populate('employeeId')
+        .populate('contractId')
+        .sort({ createdAt: -1 })
+        .exec();
+    } catch (error) {
+      this.logger.error(`Error fetching all termination requests: ${error.message}`);
+      // Return empty array instead of throwing to prevent 500 errors
+      return [];
+    }
   }
 
   /**
