@@ -1,0 +1,68 @@
+{
+  "node_modules\\next\\dist\\client\\index.js -> ../pages/_app": {
+    "id": "node_modules\\next\\dist\\client\\index.js -> ../pages/_app",
+    "files": [
+      "static/chunks/_pages-dir-browser_node_modules_next_dist_pages__app_js.js"
+    ]
+  },
+  "node_modules\\next\\dist\\client\\index.js -> ../pages/_error": {
+    "id": "node_modules\\next\\dist\\client\\index.js -> ../pages/_error",
+    "files": [
+      "static/chunks/_pages-dir-browser_node_modules_next_dist_pages__error_js.js"
+    ]
+  },
+  "pages\\subsystems\\time-management\\index.tsx -> ./attendance": {
+    "id": "pages\\subsystems\\time-management\\index.tsx -> ./attendance",
+    "files": [
+      "static/chunks/_pages-dir-browser_pages_subsystems_time-management_attendance_tsx.js"
+    ]
+  },
+  "pages\\subsystems\\time-management\\index.tsx -> ./exceptions": {
+    "id": "pages\\subsystems\\time-management\\index.tsx -> ./exceptions",
+    "files": [
+      "static/chunks/_pages-dir-browser_pages_subsystems_time-management_exceptions_tsx.js"
+    ]
+  },
+  "pages\\subsystems\\time-management\\index.tsx -> ./payroll-sync": {
+    "id": "pages\\subsystems\\time-management\\index.tsx -> ./payroll-sync",
+    "files": [
+      "static/chunks/_pages-dir-browser_pages_subsystems_time-management_payroll-sync_tsx.js"
+    ]
+  },
+  "pages\\subsystems\\time-management\\index.tsx -> ./policies": {
+    "id": "pages\\subsystems\\time-management\\index.tsx -> ./policies",
+    "files": [
+      "static/chunks/_pages-dir-browser_pages_subsystems_time-management_policies_tsx.js"
+    ]
+  },
+  "pages\\subsystems\\time-management\\index.tsx -> ./reports": {
+    "id": "pages\\subsystems\\time-management\\index.tsx -> ./reports",
+    "files": [
+      "static/chunks/_pages-dir-browser_pages_subsystems_time-management_reports_tsx.js"
+    ]
+  },
+  "pages\\subsystems\\time-management\\index.tsx -> ./shifts-assignments": {
+    "id": "pages\\subsystems\\time-management\\index.tsx -> ./shifts-assignments",
+    "files": [
+      "static/chunks/_pages-dir-browser_pages_subsystems_time-management_shifts-assignments_tsx.js"
+    ]
+  },
+  "pages\\subsystems\\time-management\\index.tsx -> ./shifts-notifications": {
+    "id": "pages\\subsystems\\time-management\\index.tsx -> ./shifts-notifications",
+    "files": [
+      "static/chunks/_pages-dir-browser_pages_subsystems_time-management_shifts-notifications_tsx.js"
+    ]
+  },
+  "pages\\subsystems\\time-management\\index.tsx -> ./shifts-scheduling-rules": {
+    "id": "pages\\subsystems\\time-management\\index.tsx -> ./shifts-scheduling-rules",
+    "files": [
+      "static/chunks/_pages-dir-browser_pages_subsystems_time-management_shifts-scheduling-rules_tsx.js"
+    ]
+  },
+  "pages\\subsystems\\time-management\\index.tsx -> ./shifts-templates": {
+    "id": "pages\\subsystems\\time-management\\index.tsx -> ./shifts-templates",
+    "files": [
+      "static/chunks/_pages-dir-browser_pages_subsystems_time-management_shifts-templates_tsx.js"
+    ]
+  }
+}
