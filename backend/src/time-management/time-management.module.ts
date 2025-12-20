@@ -160,6 +160,8 @@ import { DeviceModule } from './device/device.module';
     ReportingService,
     PayrollService,
     PrePayrollService,
+    // Export AvailabilityService for Recruitment module integration
+    AvailabilityModule, // This exports AvailabilityService
   ],
 })
 export class TimeManagementModule {}

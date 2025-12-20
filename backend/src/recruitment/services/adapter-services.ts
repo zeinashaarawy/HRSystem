@@ -1,8 +1,10 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import type { IEmployeeProfileService } from '../interfaces/employee-profile.interface';
 import type { IOrganizationStructureService } from '../interfaces/organization-structure.interface';
+import type { ITimeManagementService } from '../interfaces/time-management.interface';
 import { EmployeeProfileService } from '../../employee-profile/employee-profile.service';
 import { OrganizationStructureService } from '../../organization-structure/organization-structure.service';
+import { AvailabilityService } from '../../time-management/availability/availability.service';
 
 /**
  * Adapter services bridge real subsystem services with recruitment interfaces.
@@ -130,5 +132,149 @@ export class OrganizationStructureServiceAdapter implements IOrganizationStructu
       this.logger.error(`Error getting department ${departmentId}:`, error);
       return null;
     }
+  }
+}
+
+@Injectable()
+export class TimeManagementServiceAdapter implements ITimeManagementService {
+  private readonly logger = new Logger(TimeManagementServiceAdapter.name);
+  private readonly availabilityService: AvailabilityService;
+
+  constructor(
+    @Inject(AvailabilityService) availabilityService: AvailabilityService,
+  ) {
+    if (!availabilityService) {
+      throw new Error(
+        'AvailabilityService is required. Ensure TimeManagementModule exports AvailabilityService.'
+      );
+    }
+    this.availabilityService = availabilityService;
+    this.logger.log('✓ Using REAL AvailabilityService');
+  }
+
+  /**
+   * Create a calendar event for an interview
+   * NOTE: Calendar event creation is not yet implemented in Time Management module.
+   * This is a placeholder that logs the event details.
+   */
+  async createCalendarEvent(eventDetails: {
+    title: string;
+    description?: string;
+    startTime: Date;
+    endTime: Date;
+    attendees: string[];
+    location?: string;
+    videoLink?: string;
+  }): Promise<{ eventId: string; calendarLink?: string }> {
+    // Log the calendar event creation request
+    this.logger.log(`Calendar event creation requested: ${eventDetails.title}`);
+    this.logger.log(`Start: ${eventDetails.startTime}, End: ${eventDetails.endTime}`);
+    this.logger.log(`Attendees: ${eventDetails.attendees.length} panel members`);
+    
+    // TODO: Implement actual calendar event creation when Time Management module adds this feature
+    // For now, return a generated event ID
+    const eventId = `CAL-${Date.now()}`;
+    this.logger.warn(`Calendar event creation not yet implemented. Generated stub event ID: ${eventId}`);
+    
+    return {
+      eventId,
+      calendarLink: `https://calendar.example.com/event/${eventId}`,
+    };
+  }
+
+  /**
+   * Check availability of panel members for a time slot
+   * Uses the real AvailabilityService to check each employee's availability
+   */
+  async checkAvailability(
+    employeeIds: string[],
+    startTime: Date,
+    endTime: Date,
+  ): Promise<Array<{ employeeId: string; available: boolean; conflicts?: any[] }>> {
+    this.logger.log(`Checking availability for ${employeeIds.length} employees`);
+    this.logger.log(`Time slot: ${startTime} to ${endTime}`);
+
+    // Format date as YYYY-MM-DD (AvailabilityService expects this format)
+    const dateStr = startTime.toISOString().split('T')[0];
+
+    // Check availability for each employee
+    const availabilityResults = await Promise.all(
+      employeeIds.map(async (employeeId) => {
+        try {
+          const result = await this.availabilityService.checkAvailability(
+            employeeId,
+            dateStr,
+          );
+
+          // Check if the employee is available during the interview time slot
+          // If they have working hours, check if the interview time overlaps
+          let isAvailable = result.available;
+          const conflicts: any[] = [];
+
+          if (result.available && result.workingHours) {
+            // Parse working hours
+            const [workStartHour, workStartMin] = result.workingHours.start.split(':').map(Number);
+            const [workEndHour, workEndMin] = result.workingHours.end.split(':').map(Number);
+            
+            const workStart = new Date(startTime);
+            workStart.setHours(workStartHour, workStartMin, 0, 0);
+            
+            const workEnd = new Date(startTime);
+            workEnd.setHours(workEndHour, workEndMin, 0, 0);
+
+            // Check if interview time is within working hours
+            if (startTime < workStart || endTime > workEnd) {
+              isAvailable = false;
+              conflicts.push({
+                type: 'OUTSIDE_WORKING_HOURS',
+                message: `Interview time (${startTime.toISOString()} - ${endTime.toISOString()}) is outside working hours (${result.workingHours.start} - ${result.workingHours.end})`,
+              });
+            }
+          } else if (!result.available) {
+            // Employee is not available - add reason to conflicts
+            conflicts.push({
+              type: result.reason || 'UNAVAILABLE',
+              message: `Employee is not available: ${result.reason || 'Unknown reason'}`,
+            });
+          }
+
+          return {
+            employeeId,
+            available: isAvailable,
+            conflicts: conflicts.length > 0 ? conflicts : undefined,
+          };
+        } catch (error) {
+          this.logger.error(`Error checking availability for employee ${employeeId}:`, error);
+          return {
+            employeeId,
+            available: false,
+            conflicts: [
+              {
+                type: 'ERROR',
+                message: `Failed to check availability: ${error.message}`,
+              },
+            ],
+          };
+        }
+      }),
+    );
+
+    return availabilityResults;
+  }
+
+  /**
+   * Send calendar invite (iCal format) to attendees
+   * NOTE: Calendar invite sending is not yet implemented in Time Management module.
+   * This is a placeholder that logs the invite details.
+   */
+  async sendCalendarInvite(eventId: string, attendeeEmails: string[]): Promise<void> {
+    this.logger.log(`Calendar invite requested for event ${eventId}`);
+    this.logger.log(`Sending invites to ${attendeeEmails.length} attendees`);
+    
+    // TODO: Implement actual calendar invite sending when Time Management module adds this feature
+    // For now, just log the request
+    attendeeEmails.forEach((email) => {
+      this.logger.warn(`Would send calendar invite to: ${email} (not yet implemented)`);
+    });
   }
 }
