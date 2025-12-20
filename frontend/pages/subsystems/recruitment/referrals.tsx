@@ -244,10 +244,10 @@ export default function Referrals() {
                     <h3 className="text-xl font-semibold">Referral {referral._id.slice(-8)}</h3>
                   </div>
                   <p className="text-sm text-slate-200/80">
-                    Referring Employee: {referral.referringEmployeeId.slice(-8)}
+                    Referring Employee: {referral.referringEmployeeId ? (typeof referral.referringEmployeeId === 'string' ? referral.referringEmployeeId.slice(-8) : (referral.referringEmployeeId as any)?._id?.slice(-8) || 'N/A') : 'N/A'}
                   </p>
                   <p className="text-sm text-slate-200/80">
-                    Candidate: {referral.candidateId.slice(-8)}
+                    Candidate: {referral.candidateId ? (typeof referral.candidateId === 'string' ? referral.candidateId.slice(-8) : (referral.candidateId as any)?._id?.slice(-8) || 'N/A') : 'N/A'}
                   </p>
                   {referral.role && (
                     <p className="text-sm text-slate-200/80">Role: {referral.role}</p>
@@ -269,4 +269,3 @@ export default function Referrals() {
     </div>
   );
 }
-

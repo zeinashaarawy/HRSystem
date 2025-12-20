@@ -382,6 +382,12 @@ export async function getEmployeeLeaveBalance(
   return apiClient.get(`/termination-requests/employee/${employeeId}/leave-balance`);
 }
 
+export async function revokeSystemAccess(
+  employeeId: string,
+): Promise<{ data: { message: string } }> {
+  return apiClient.post(`/termination-requests/employee/${employeeId}/revoke-access`);
+}
+
 // ==========================================
 // CONSENT MANAGEMENT (REC-028)
 // ==========================================

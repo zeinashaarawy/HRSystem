@@ -37,10 +37,10 @@ export default function TerminationsManagement() {
   }, []);
 
   useEffect(() => {
-    if (selectedTermination) {
+    if (selectedTermination?._id) {
       fetchTerminationDetails(selectedTermination._id);
     }
-  }, [selectedTermination]);
+  }, [selectedTermination?._id]);
 
   const fetchTerminations = async () => {
     try {
@@ -68,7 +68,7 @@ export default function TerminationsManagement() {
         alert(errorMessage);
         console.error('403 Forbidden - User role:', localStorage.getItem('role'));
       } else if (err?.code === 'ERR_NETWORK' || err?.code === 'ERR_CONNECTION_REFUSED') {
-        alert('Cannot connect to server. Please ensure the backend is running on port 4000.');
+        alert('Cannot connect to server. Please ensure the backend is running on port 3001.');
       } else {
         alert(err?.response?.data?.message || 'Failed to load terminations');
       }
@@ -79,6 +79,7 @@ export default function TerminationsManagement() {
 
   const fetchTerminationDetails = async (terminationId: string) => {
     try {
+      setActionLoading(terminationId);
       // Fetch termination details
       const termResponse = await getTerminationRequest(terminationId);
       setSelectedTermination(termResponse.data);
@@ -110,6 +111,8 @@ export default function TerminationsManagement() {
     } catch (err: any) {
       console.error('Error fetching termination details:', err);
       alert(err?.response?.data?.message || 'Failed to load termination details');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -517,4 +520,3 @@ export default function TerminationsManagement() {
     </div>
   );
 }
-

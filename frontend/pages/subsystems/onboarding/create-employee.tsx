@@ -86,6 +86,13 @@ export default function CreateEmployee() {
         try {
           // Fetch candidate details
           const candidateId = (offer.candidateId as any)?._id || offer.candidateId;
+          
+          // Skip if candidateId is null or undefined
+          if (!candidateId || candidateId === 'null' || candidateId === 'undefined') {
+            console.warn('Skipping offer with invalid candidateId:', offer._id);
+            continue;
+          }
+          
           const candidateResponse = await apiClient.get<Candidate>(`/employee-profile/candidates/${candidateId}`);
           const candidate = candidateResponse.data;
           
@@ -108,7 +115,7 @@ export default function CreateEmployee() {
       console.error('Error fetching candidates with offers:', err);
       // Handle network errors gracefully
       if (err?.code === 'ERR_NETWORK' || err?.message?.includes('Network Error')) {
-        setError('Cannot connect to the server. Please ensure the backend is running on port 4000.');
+        setError('Cannot connect to the server. Please ensure the backend is running on port 3001.');
       } else {
         setError(err?.response?.data?.message || 'Failed to load candidates');
       }
@@ -196,7 +203,7 @@ export default function CreateEmployee() {
           <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 text-center">
             <p className="text-red-300">{error}</p>
             <p className="text-sm text-slate-300/60 mt-2">
-              Please ensure the backend server is running on port 4000.
+              Please ensure the backend server is running on port 3001.
             </p>
           </div>
         )}
@@ -354,4 +361,3 @@ export default function CreateEmployee() {
     </div>
   );
 }
-

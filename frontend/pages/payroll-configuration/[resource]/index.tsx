@@ -110,6 +110,12 @@ export default function PayrollConfigResourceListPage() {
 
   const perms = getPayrollPermissions(role, meta.slug as PayrollConfigResourceSlug);
 
+  const isCompanyWideSettings = meta.slug === 'company-wide-settings';
+  const existingCompanyWideId =
+    isCompanyWideSettings && items.length > 0
+      ? items[0]?._id ?? items[0]?.id
+      : null;
+
   return (
     <PayrollConfigLayout
       title={meta.title}
@@ -144,13 +150,23 @@ export default function PayrollConfigResourceListPage() {
         </div>
 
         {meta.capabilities.canCreate && perms.canCreate ? (
-          <Link
-            href={`/payroll-configuration/${meta.slug}/new`}
-            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-600 px-5 py-3 text-sm hover:opacity-90 transition"
-          >
-            <Plus className="w-4 h-4" />
-            New {meta.title}
-          </Link>
+          isCompanyWideSettings && existingCompanyWideId ? (
+            <Link
+              href={`/payroll-configuration/${meta.slug}/${existingCompanyWideId}`}
+              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-600 px-5 py-3 text-sm hover:opacity-90 transition"
+            >
+              <Plus className="w-4 h-4" />
+              Edit {meta.title}
+            </Link>
+          ) : (
+            <Link
+              href={`/payroll-configuration/${meta.slug}/new`}
+              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-600 px-5 py-3 text-sm hover:opacity-90 transition"
+            >
+              <Plus className="w-4 h-4" />
+              New {meta.title}
+            </Link>
+          )
         ) : null}
       </div>
 
