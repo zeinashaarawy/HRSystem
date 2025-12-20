@@ -7,6 +7,7 @@ import {
   Users,
   Settings,
   ChevronRight,
+  ChevronLeft,
   Sparkles,
 } from "lucide-react";
 
@@ -72,6 +73,15 @@ export default function LeavesHome() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white px-6 py-24">
+      <div className="max-w-6xl mx-auto">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-sm text-gray-300 hover:text-white mb-8"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          Back
+        </Link>
+      </div>
       <div className="max-w-5xl mx-auto text-center mb-20">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 mb-6">
           <Sparkles className="w-4 h-4 text-cyan-400" />

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { ChevronLeft } from 'lucide-react';
 
 type UserRole = 'Job Candidate' | 'HR Employee' | 'HR Manager' | 'HR Admin' | 'Recruiter' | null;
 
@@ -120,6 +121,13 @@ export default function Recruitment() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white px-6 py-12">
       <div className="max-w-6xl mx-auto space-y-10">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-sm text-gray-300 hover:text-white"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          Back
+        </Link>
         <header className="space-y-3 text-center">
           <p className="text-sm uppercase tracking-[0.3em] text-blue-300/80">Recruitment</p>
           <h1 className="text-4xl lg:text-5xl font-semibold">{getRoleTitle()}</h1>

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   AlertTriangle,
   BadgeCheck,
@@ -11,6 +12,7 @@ import {
   Send,
   UserX,
   Download,
+  ChevronLeft,
 } from "lucide-react";
 
 import {
@@ -653,6 +655,13 @@ export default function PayrollExecution() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white px-4 py-8 lg:px-8 lg:py-12">
       <div className="max-w-7xl mx-auto space-y-6">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-sm text-gray-300 hover:text-white mb-4"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          Back
+        </Link>
         <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-3xl lg:text-4xl font-light flex items-center gap-3">
