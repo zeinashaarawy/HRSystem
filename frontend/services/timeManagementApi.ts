@@ -410,7 +410,7 @@ export const getAllExceptions = (filters?: {
   if (filters?.employeeId) params.append('employeeId', filters.employeeId);
   
   const queryString = params.toString();
-  return TimeManagementAPI.get(`/time-management/exceptions${queryString ? `?${queryString}` : ''}`);
+  return TimeManagementAPI.get(`/exceptions${queryString ? `?${queryString}` : ''}`);
 };
 
 /**
