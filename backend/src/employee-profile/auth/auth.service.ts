@@ -148,6 +148,7 @@ export class AuthService {
   const payload = {
     id: candidate._id.toString(),
     username: candidate.firstName + ' ' + candidate.lastName,
+    role: SystemRole.JOB_CANDIDATE,
     type: 'CANDIDATE',
     userType: 'CANDIDATE',
   };

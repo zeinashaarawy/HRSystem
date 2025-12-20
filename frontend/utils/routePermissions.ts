@@ -9,7 +9,8 @@ export type SystemRole =
   | "HR_EMPLOYEE" 
   | "HR_ADMIN"
   | "DEPARTMENT_HEAD"
-  | "DEPARTMENT_EMPLOYEE";
+  | "DEPARTMENT_EMPLOYEE"
+  | "JOB_CANDIDATE";
 
 /**
  * Normalize role from localStorage to SystemRole
@@ -26,6 +27,7 @@ export function normalizeRole(role: string | null): SystemRole | null {
   if (normalized === "HR_ADMIN") return "HR_ADMIN";
   if (normalized === "DEPARTMENT_HEAD") return "DEPARTMENT_HEAD";
   if (normalized === "DEPARTMENT_EMPLOYEE") return "DEPARTMENT_EMPLOYEE";
+  if (normalized === "JOB_CANDIDATE" || normalized === "CANDIDATE") return "JOB_CANDIDATE";
   
   return null;
 }
@@ -48,6 +50,7 @@ export const ROUTE_PERMISSIONS: Record<string, SystemRole[]> = {
     "HR_ADMIN",
     "DEPARTMENT_HEAD",
     "DEPARTMENT_EMPLOYEE",
+    "JOB_CANDIDATE",
   ],
   
   // HR routes - HR roles only
@@ -130,6 +133,7 @@ export const ROUTE_PERMISSIONS: Record<string, SystemRole[]> = {
     "HR_ADMIN",
     "DEPARTMENT_HEAD",
     "DEPARTMENT_EMPLOYEE",
+    "JOB_CANDIDATE",
   ],
   
   // Organization Structure - HR and Admin
@@ -148,6 +152,27 @@ export const ROUTE_PERMISSIONS: Record<string, SystemRole[]> = {
     "HR_ADMIN",
     "DEPARTMENT_HEAD",
     "DEPARTMENT_EMPLOYEE",
+    "JOB_CANDIDATE",
+  ],
+  
+  // Recruitment routes - HR roles and candidates
+  "/subsystems/recruitment/*": [
+    "SYSTEM_ADMIN",
+    "HR_MANAGER",
+    "HR_EMPLOYEE",
+    "HR_ADMIN",
+    "JOB_CANDIDATE",
+  ],
+  
+  // Onboarding routes - HR roles, employees, and candidates
+  "/subsystems/onboarding/*": [
+    "SYSTEM_ADMIN",
+    "HR_MANAGER",
+    "HR_EMPLOYEE",
+    "HR_ADMIN",
+    "DEPARTMENT_HEAD",
+    "DEPARTMENT_EMPLOYEE",
+    "JOB_CANDIDATE",
   ],
   
   // Payroll Configuration - HR, Payroll, Finance, and Admin roles
