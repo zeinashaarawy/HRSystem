@@ -219,7 +219,7 @@ export class RecruitmentController {
     @ApiResponse({ status: 200, description: 'Job published successfully' })
     @ApiResponse({ status: 400, description: 'Job already published' })
     @ApiResponse({ status: 404, description: 'Job not found' })
-    @Roles('hr_manager')
+    @Roles('hr_employee', 'hr_manager')
     @Post('jobs/:id/publish')
     async publishJob(@Param('id') id: string) {
       return this.recruitmentService.publishJobRequisition(id);
@@ -347,9 +347,10 @@ export class RecruitmentController {
     async updateStatus(
       @Param('id') id: string,
       @Body() dto: UpdateApplicationStatusDto,
+      @Req() req: any,
     ) {
-      // In real implementation, get userId from JWT token
-      const changedBy = 'system'; // TODO: Extract from JWT token
+      // Extract userId from JWT token
+      const changedBy = req.user?.userId || req.user?._id || req.user?.id || 'system';
       return this.recruitmentService.updateApplicationStatus(id, dto, changedBy);
     }
   
@@ -366,6 +367,7 @@ export class RecruitmentController {
       description: 'Rejection notification sent',
     })
     @ApiResponse({ status: 404, description: 'Application not found' })
+    @Roles('hr_employee', 'hr_manager')
     @Post('applications/:id/reject')
     @UsePipes(new ValidationPipe({ transform: true }))
     async notifyCandidate(
@@ -394,6 +396,7 @@ export class RecruitmentController {
       description: 'Interview scheduled successfully',
     })
     @ApiResponse({ status: 400, description: 'Validation failed (BR19)' })
+    @Roles('hr_employee', 'hr_manager')
     @Post('interviews')
     @HttpCode(HttpStatus.CREATED)
     @UsePipes(new ValidationPipe({ transform: true }))
@@ -448,6 +451,7 @@ export class RecruitmentController {
       description: 'Interviewer not in panel (BR22)',
     })
     @ApiResponse({ status: 404, description: 'Interview not found' })
+    @Roles('hr_employee', 'hr_manager')
     @Post('interviews/:id/feedback')
     @HttpCode(HttpStatus.CREATED)
     @UsePipes(new ValidationPipe({ transform: true }))
@@ -475,6 +479,7 @@ export class RecruitmentController {
     })
     @ApiResponse({ status: 201, description: 'Candidate tagged as referral' })
     @ApiResponse({ status: 400, description: 'Validation failed' })
+    @Roles('hr_employee', 'hr_manager')
     @Post('referrals')
     @HttpCode(HttpStatus.CREATED)
     @UsePipes(new ValidationPipe({ transform: true }))
@@ -516,7 +521,7 @@ export class RecruitmentController {
       status: 400,
       description: 'Application not at offer stage',
     })
-    @Roles('hr_manager')
+    @Roles('hr_employee', 'hr_manager')
     @Post('offers')
     @HttpCode(HttpStatus.CREATED)
     @UsePipes(new ValidationPipe({ transform: true }))
@@ -576,6 +581,7 @@ export class RecruitmentController {
       description: 'Offer accepted, onboarding triggered',
     })
     @ApiResponse({ status: 404, description: 'Offer not found' })
+    // No role restriction - candidates can accept offers
     @Post('offers/:id/accept')
     @UsePipes(new ValidationPipe({ transform: true }))
     async acceptOffer(@Param('id') id: string, @Body() dto: RespondOfferDto) {
@@ -1055,5 +1061,36 @@ export class RecruitmentController {
     @Post('onboarding/employee/:employeeId/provision-access')
     async provisionSystemAccess(@Param('employeeId') employeeId: string) {
       return this.onboardingService.provisionSystemAccess(employeeId);
+    }
+
+    @ApiTags('onboarding')
+    @ApiOperation({
+      summary: 'Cancel onboarding for no-show employee',
+      description: 'Cancel onboarding and terminate employee profile in case of no-show. Allows onboarding cancellation/termination of the created employee profile.',
+    })
+    @ApiParam({ name: 'employeeId', description: 'Employee ID' })
+    @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } }, required: ['reason'] } })
+    @ApiResponse({ status: 200, description: 'Onboarding cancelled and employee profile terminated' })
+    @Roles('hr_manager')
+    @Post('onboarding/employee/:employeeId/cancel-no-show')
+    async cancelOnboardingForNoShow(
+      @Param('employeeId') employeeId: string,
+      @Body('reason') reason: string,
+    ) {
+      await this.onboardingService.cancelOnboardingForNoShow(employeeId, reason);
+      return { message: 'Onboarding cancelled and employee profile terminated due to no-show' };
+    }
+
+    @ApiTags('onboarding')
+    @ApiOperation({
+      summary: 'Verify documents before first working day',
+      description: 'Verify that all required documents are collected and verified by HR before the first working day.',
+    })
+    @ApiParam({ name: 'employeeId', description: 'Employee ID' })
+    @ApiResponse({ status: 200, description: 'Document verification result' })
+    @Roles('hr_manager', 'hr_employee')
+    @Get('onboarding/employee/:employeeId/verify-documents')
+    async verifyDocumentsBeforeStartDate(@Param('employeeId') employeeId: string) {
+      return this.onboardingService.verifyDocumentsBeforeStartDate(employeeId);
     }
 }

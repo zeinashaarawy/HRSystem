@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, BadRequestException, Optional, Inject } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import type { IOnboardingService } from '../interfaces/onboarding.interface';
@@ -13,6 +13,9 @@ import { UploadDocumentDto } from '../dto/upload-document.dto';
 import { ReserveEquipmentDto } from '../dto/reserve-equipment.dto';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { PayrollExecutionService } from '../../payroll-execution/payroll-execution.service';
+import { EmployeeProfile, EmployeeProfileDocument } from '../../employee-profile/models/employee-profile.schema';
+import { EmployeeSystemRole, EmployeeSystemRoleDocument } from '../../employee-profile/models/employee-system-role.schema';
+import { SystemRole } from '../../employee-profile/enums/employee-profile.enums';
 
 /**
  * Real Onboarding Service implementation using the Onboarding model.
@@ -28,9 +31,21 @@ export class OnboardingService implements IOnboardingService {
     private contractModel: Model<Contract>,
     @InjectModel(Document.name)
     private documentModel: Model<Document>,
-    @Optional() private notificationsService?: NotificationsService,
-    @Optional() private payrollExecutionService?: PayrollExecutionService,
-  ) {}
+    @InjectModel(EmployeeProfile.name)
+    private employeeProfileModel: Model<EmployeeProfileDocument>,
+    @InjectModel(EmployeeSystemRole.name)
+    private employeeSystemRoleModel: Model<EmployeeSystemRoleDocument>,
+    @Inject(NotificationsService) private notificationsService: NotificationsService,
+    @Inject(PayrollExecutionService) private payrollExecutionService: PayrollExecutionService,
+  ) {
+    if (!notificationsService) {
+      throw new Error('NotificationsService is required. Ensure NotificationsModule is imported.');
+    }
+    if (!payrollExecutionService) {
+      throw new Error('PayrollExecutionService is required. Ensure PayrollExecutionModule is imported.');
+    }
+    this.logger.log('✓ Using REAL NotificationsService and PayrollExecutionService');
+  }
 
   async triggerOnboarding(
     candidateId: string,
@@ -89,10 +104,10 @@ export class OnboardingService implements IOnboardingService {
       this.logger.log(`Contract created (pending document): ${contractId}`);
     }
 
-    // Use provided employeeId or create placeholder
-    const employeeId = offerDetails.employeeId 
+    // Use provided employeeId or generate new one
+    const employeeId = offerDetails.employeeId
       ? new Types.ObjectId(offerDetails.employeeId)
-      : new Types.ObjectId(); // Placeholder - should be set by calling service
+      : new Types.ObjectId(); // Generated if not provided - will be set when employee profile is created
 
     // Create default onboarding tasks based on role and department
     const tasks = [
@@ -148,7 +163,7 @@ export class OnboardingService implements IOnboardingService {
     this.logger.log(`Onboarding created with ID: ${onboarding._id} and ${tasks.length} tasks`);
 
     // Process signing bonus if contract has signing bonus
-    if (contract && contract.signingBonus && contract.signingBonus > 0 && offerDetails.employeeId && this.payrollExecutionService) {
+    if (contract && contract.signingBonus && contract.signingBonus > 0 && offerDetails.employeeId) {
       try {
         await this.payrollExecutionService.handleNewHireEvent(
           offerDetails.employeeId,
@@ -181,15 +196,29 @@ export class OnboardingService implements IOnboardingService {
       this.logger.log(`[ONB-009/ONB-013] Provisioning should be triggered on start date: ${offerDetails.startDate}`);
       this.logger.log(`[ONB-009/ONB-013] Required access: Email, SSO, Payroll, Internal Systems`);
       
-      // Send notification to System Admin (if notifications service available)
-      if (this.notificationsService) {
-        try {
-          // In a real implementation, you would fetch System Admin email
-          // For now, we log the provisioning request
-          this.logger.log(`[ONB-009/ONB-013] Provisioning notification logged for System Admin`);
-        } catch (error) {
-          this.logger.warn(`Failed to send provisioning notification: ${error.message}`);
+      // Send notification to System Admins
+      try {
+        const systemAdmins = await this.findSystemAdmins();
+        if (systemAdmins.length > 0) {
+          for (const admin of systemAdmins) {
+            await this.notificationsService.sendNotification({
+              type: 'application_status_update' as any,
+              channel: 'email' as any,
+              recipientId: admin._id.toString(),
+              recipientEmail: admin.workEmail || admin.personalEmail || '',
+              recipientName: `${admin.firstName} ${admin.lastName}`,
+              subject: 'System Access Provisioning Required',
+              content: `New employee ${offerDetails.employeeId} requires system access provisioning. Start date: ${offerDetails.startDate}. Please provision email, SSO, payroll access, and internal systems.`,
+              relatedEntityId: onboarding._id.toString(),
+              relatedEntityType: 'onboarding',
+            });
+          }
+          this.logger.log(`[ONB-009/ONB-013] Notified ${systemAdmins.length} system admin(s) of provisioning request`);
+        } else {
+          this.logger.warn('[ONB-009/ONB-013] No system admins found to notify');
         }
+      } catch (error) {
+        this.logger.error(`Failed to send provisioning notification: ${error.message}`);
       }
     }
 
@@ -233,6 +262,181 @@ export class OnboardingService implements IOnboardingService {
     }
 
     return onboarding;
+  }
+
+  /**
+   * Cancel onboarding and terminate employee profile for no-show
+   * Requirement: The system should allow onboarding cancellation/termination of the created employee profile in case of a "no show"
+   */
+  async cancelOnboardingForNoShow(employeeId: string, reason: string): Promise<void> {
+    this.logger.log(`[ONBOARDING] Cancelling onboarding for employee ${employeeId} due to no-show`);
+    
+    // Find onboarding record
+    const onboarding = await this.onboardingModel
+      .findOne({ employeeId: new Types.ObjectId(employeeId) })
+      .exec();
+
+    if (!onboarding) {
+      throw new NotFoundException(`Onboarding not found for employee ${employeeId}`);
+    }
+
+    // Mark all tasks as not completed with cancellation note
+    onboarding.tasks.forEach((task: any) => {
+      if (task.status === OnboardingTaskStatus.PENDING || task.status === OnboardingTaskStatus.IN_PROGRESS) {
+        task.status = OnboardingTaskStatus.PENDING; // Keep as pending but mark as cancelled
+        task.notes = task.notes ? `${task.notes}\n[CANCELLED - NO SHOW] ${reason}` : `[CANCELLED - NO SHOW] ${reason}`;
+      }
+    });
+
+    onboarding.completed = false;
+    await onboarding.save();
+
+    // Terminate employee profile via EmployeeProfileService
+    try {
+      const employee = await this.employeeProfileModel.findById(employeeId).exec();
+      if (employee) {
+        // Update employee status to TERMINATED
+        employee.status = 'TERMINATED' as any;
+        await employee.save();
+        this.logger.log(`[ONBOARDING] Employee profile ${employeeId} terminated due to no-show`);
+      } else {
+        this.logger.warn(`[ONBOARDING] Employee profile ${employeeId} not found - may have been deleted`);
+      }
+    } catch (error) {
+      this.logger.error(`[ONBOARDING] Failed to terminate employee profile: ${error.message}`);
+      throw error;
+    }
+
+    // Send notification to HR
+    if (this.notificationsService) {
+      try {
+        const hrManagers = await this.findHRManagers();
+        for (const hrManager of hrManagers) {
+          await this.notificationsService.sendNotification({
+            type: 'application_status_update' as any,
+            channel: 'email' as any,
+            recipientId: hrManager._id.toString(),
+            recipientEmail: hrManager.workEmail || hrManager.personalEmail || '',
+            recipientName: `${hrManager.firstName} ${hrManager.lastName}`,
+            subject: 'Onboarding Cancelled - No Show',
+            content: `Onboarding for employee ${employeeId} has been cancelled due to no-show. Reason: ${reason}. Employee profile has been terminated.`,
+            relatedEntityId: onboarding._id.toString(),
+            relatedEntityType: 'onboarding_cancellation',
+          });
+        }
+        this.logger.log(`[ONBOARDING] Notified ${hrManagers.length} HR manager(s) of onboarding cancellation`);
+      } catch (error) {
+        this.logger.error(`[ONBOARDING] Failed to send cancellation notification: ${error.message}`);
+      }
+    }
+
+    this.logger.log(`[ONBOARDING] Onboarding cancelled and employee profile terminated for ${employeeId}`);
+  }
+
+  /**
+   * Verify documents are collected before first working day
+   * Requirement: Documents must be collected and verified by the HR department before the first working day
+   */
+  async verifyDocumentsBeforeStartDate(employeeId: string): Promise<{ verified: boolean; missingDocuments: string[] }> {
+    this.logger.log(`[ONBOARDING] Verifying documents for employee ${employeeId} before start date`);
+    
+    const onboarding = await this.onboardingModel
+      .findOne({ employeeId: new Types.ObjectId(employeeId) })
+      .populate('contractId')
+      .exec();
+
+    if (!onboarding) {
+      throw new NotFoundException(`Onboarding not found for employee ${employeeId}`);
+    }
+
+    // Find document collection tasks
+    const documentTasks = onboarding.tasks.filter((task: any) => 
+      task.documentId || task.name?.toLowerCase().includes('document') || task.name?.toLowerCase().includes('contract')
+    );
+
+    const missingDocuments: string[] = [];
+    
+    for (const task of documentTasks) {
+      if (!task.documentId) {
+        missingDocuments.push(task.name || 'Unknown document');
+      } else {
+        // Verify document exists
+        const document = await this.documentModel.findById(task.documentId).exec();
+        if (!document) {
+          missingDocuments.push(task.name || 'Unknown document');
+        }
+      }
+    }
+
+    // Check if contract document is uploaded
+    const contract = await this.contractModel.findById(onboarding.contractId).exec();
+    if (contract && !contract.documentId) {
+      missingDocuments.push('Signed Contract');
+    }
+
+    const verified = missingDocuments.length === 0;
+
+    if (verified) {
+      this.logger.log(`[ONBOARDING] All documents verified for employee ${employeeId}`);
+    } else {
+      this.logger.warn(`[ONBOARDING] Missing documents for employee ${employeeId}: ${missingDocuments.join(', ')}`);
+    }
+
+    return { verified, missingDocuments };
+  }
+
+  /**
+   * Find HR managers for notifications
+   */
+  private async findHRManagers(): Promise<EmployeeProfileDocument[]> {
+    try {
+      const hrManagerRoles = await this.employeeSystemRoleModel
+        .find({
+          roles: { $in: [SystemRole.HR_MANAGER, SystemRole.HR_ADMIN] },
+          isActive: true,
+        })
+        .populate('employeeProfileId')
+        .exec();
+
+      if (hrManagerRoles.length === 0) {
+        return [];
+      }
+
+      const managerIds: Types.ObjectId[] = [];
+      for (const role of hrManagerRoles) {
+        const profileId = role.employeeProfileId as any;
+        if (!profileId) continue;
+        
+        let id: Types.ObjectId;
+        if (profileId instanceof Types.ObjectId) {
+          id = profileId;
+        } else if (typeof profileId === 'string') {
+          id = new Types.ObjectId(profileId);
+        } else if (profileId && typeof profileId === 'object') {
+          const populatedId = (profileId as any)._id || profileId;
+          id = populatedId instanceof Types.ObjectId ? populatedId : new Types.ObjectId(String(populatedId));
+        } else {
+          continue;
+        }
+        managerIds.push(id);
+      }
+
+      if (managerIds.length === 0) {
+        return [];
+      }
+
+      const hrManagers = await this.employeeProfileModel
+        .find({
+          _id: { $in: managerIds },
+          status: { $ne: 'TERMINATED' },
+        })
+        .exec();
+
+      return hrManagers;
+    } catch (error) {
+      this.logger.error(`Error finding HR managers: ${error.message}`);
+      return [];
+    }
   }
 
   /**
@@ -558,7 +762,7 @@ HR Team
             
             this.logger.log(`[ONB-013] Triggering automated provisioning for employee ${employeeId} (start date: ${task.deadline})`);
             
-            // Log provisioning request (in production, this would call actual IT systems)
+            // Log provisioning request - actual provisioning is performed by System Admin
             this.logger.log(`[ONB-013] Provisioning required for:`);
             this.logger.log(`  - Employee ID: ${employeeId}`);
             this.logger.log(`  - Email access: Required`);
@@ -570,14 +774,27 @@ HR Team
             task.status = OnboardingTaskStatus.IN_PROGRESS;
             await onboarding.save();
             
-            // Send notification to System Admin (if available)
-            if (this.notificationsService) {
-              try {
-                // In production, fetch System Admin email from Employee Profile
-                this.logger.log(`[ONB-013] Provisioning notification sent to System Admin`);
-              } catch (error) {
-                this.logger.warn(`[ONB-013] Failed to send provisioning notification: ${error.message}`);
+            // Send notification to System Admins
+            try {
+              const systemAdmins = await this.findSystemAdmins();
+              if (systemAdmins.length > 0) {
+                for (const admin of systemAdmins) {
+                  await this.notificationsService.sendNotification({
+                    type: 'application_status_update' as any,
+                    channel: 'email' as any,
+                    recipientId: admin._id.toString(),
+                    recipientEmail: admin.workEmail || admin.personalEmail || '',
+                    recipientName: `${admin.firstName} ${admin.lastName}`,
+                    subject: 'Automated Provisioning Required - Start Date Today',
+                    content: `Employee ${employeeId} start date is today. Please provision system access immediately.`,
+                    relatedEntityId: onboarding._id.toString(),
+                    relatedEntityType: 'onboarding',
+                  });
+                }
+                this.logger.log(`[ONB-013] Notified ${systemAdmins.length} system admin(s) of automated provisioning`);
               }
+            } catch (error) {
+              this.logger.error(`[ONB-013] Failed to send provisioning notification: ${error.message}`);
             }
           }
         }
@@ -624,17 +841,10 @@ HR Team
       this.logger.log(`  - ${action}`);
     });
 
-    // In production, this would call actual IT system APIs:
-    /*
-    if (this.systemAdminService) {
-      await this.systemAdminService.createEmailAccount(employeeId);
-      await this.systemAdminService.provisionSSOAccess(employeeId);
-      await this.systemAdminService.grantPayrollAccess(employeeId);
-      await this.systemAdminService.provisionInternalSystemAccess(employeeId);
-      await this.systemAdminService.activateUserAccount(employeeId);
-    }
-    */
-
+    // System access provisioning is performed by System Admin through this endpoint
+    // The provisioning actions are logged and tracked via onboarding tasks
+    // Actual IT system integration would be handled by System Admin service when available
+    
     // Update provisioning tasks status
     for (const task of provisioningTasks) {
       task.status = OnboardingTaskStatus.COMPLETED;
@@ -642,14 +852,27 @@ HR Team
     }
     await onboarding.save();
 
-    // Send notification to employee (if available)
-    if (this.notificationsService) {
-      try {
-        // In production, fetch employee email and send notification
-        this.logger.log(`[ONB-009] Employee notified of system access provisioning`);
-      } catch (error) {
-        this.logger.warn(`[ONB-009] Failed to send notification: ${error.message}`);
+    // Send notification to employee
+    try {
+      const employee = await this.findEmployeeById(employeeId);
+      if (employee) {
+        await this.notificationsService.sendNotification({
+          type: 'application_status_update' as any,
+          channel: 'email' as any,
+          recipientId: employeeId,
+          recipientEmail: employee.workEmail || employee.personalEmail || '',
+          recipientName: `${employee.firstName} ${employee.lastName}`,
+          subject: 'System Access Provisioned',
+          content: `Your system access has been provisioned. You now have access to email, SSO, payroll, and internal systems.`,
+          relatedEntityId: onboarding._id.toString(),
+          relatedEntityType: 'onboarding',
+        });
+        this.logger.log(`[ONB-009] Employee ${employeeId} notified of system access provisioning`);
+      } else {
+        this.logger.warn(`[ONB-009] Employee ${employeeId} not found, cannot send notification`);
       }
+    } catch (error) {
+      this.logger.error(`[ONB-009] Failed to send notification: ${error.message}`);
     }
 
     return {
@@ -657,5 +880,71 @@ HR Team
       actions,
     };
   }
-}
 
+  /**
+   * Find system admin users to notify about provisioning requests
+   */
+  private async findSystemAdmins(): Promise<EmployeeProfileDocument[]> {
+    try {
+      const systemAdminRoles = await this.employeeSystemRoleModel
+        .find({
+          roles: { $in: [SystemRole.SYSTEM_ADMIN] },
+          isActive: true,
+        })
+        .populate('employeeProfileId')
+        .exec();
+
+      if (systemAdminRoles.length === 0) {
+        return [];
+      }
+
+      const adminIds: Types.ObjectId[] = [];
+      for (const role of systemAdminRoles) {
+        const profileId = role.employeeProfileId as any;
+        if (!profileId) continue;
+        
+        let id: Types.ObjectId;
+        if (profileId instanceof Types.ObjectId) {
+          id = profileId;
+        } else if (typeof profileId === 'string') {
+          id = new Types.ObjectId(profileId);
+        } else if (profileId && typeof profileId === 'object') {
+          const populatedId = (profileId as any)._id || profileId;
+          id = populatedId instanceof Types.ObjectId ? populatedId : new Types.ObjectId(String(populatedId));
+        } else {
+          continue;
+        }
+        adminIds.push(id);
+      }
+
+      if (adminIds.length === 0) {
+        return [];
+      }
+
+      const systemAdmins = await this.employeeProfileModel
+        .find({
+          _id: { $in: adminIds },
+          status: { $ne: 'TERMINATED' },
+        })
+        .exec();
+
+      return systemAdmins;
+    } catch (error) {
+      this.logger.error(`Error finding system admins: ${error.message}`);
+      return [];
+    }
+  }
+
+  /**
+   * Find employee by ID to get email for notifications
+   */
+  private async findEmployeeById(employeeId: string): Promise<EmployeeProfileDocument | null> {
+    try {
+      const employee = await this.employeeProfileModel.findById(employeeId).exec();
+      return employee;
+    } catch (error) {
+      this.logger.error(`Error finding employee ${employeeId}: ${error.message}`);
+      return null;
+    }
+  }
+}

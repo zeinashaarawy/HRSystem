@@ -27,6 +27,7 @@ import { Referral } from './models/referral.schema';
 import { Offer } from './models/offer.schema';
 import { Contract } from './models/contract.schema';
 import { Candidate } from '../employee-profile/models/candidate.schema';
+import { EmployeeProfile } from '../employee-profile/models/employee-profile.schema';
 import { ApplicationStage } from './enums/application-stage.enum';
 import { ApplicationStatus } from './enums/application-status.enum';
 import { InterviewStatus } from './enums/interview-status.enum';
@@ -77,6 +78,8 @@ export class RecruitmentService {
     private contractModel: Model<Contract>,
     @InjectModel(Candidate.name)
     private candidateModel: Model<Candidate>,
+    @InjectModel(EmployeeProfile.name)
+    private employeeProfileModel: Model<EmployeeProfile>,
     @Optional() @Inject('IOnboardingService') private onboardingService?: IOnboardingService,
     @Optional() @Inject('IEmployeeProfileService') private employeeProfileService?: IEmployeeProfileService,
     @Optional() @Inject('IOrganizationStructureService') private orgStructureService?: IOrganizationStructureService,
@@ -1402,8 +1405,70 @@ export class RecruitmentService {
           this.logger.warn(`No email found for candidate. Interview invite not sent.`);
         }
       } else {
-        // Panel member invites would go here
-        this.logger.log(`Panel member invites not yet implemented (BR19)`);
+        // Send invites to panel members (BR19)
+        if (interview.panel && interview.panel.length > 0) {
+          try {
+            // Fetch panel member emails from EmployeeProfile
+            const panelMemberIds = interview.panel
+              .map(p => p instanceof Types.ObjectId ? p : new Types.ObjectId(String(p)))
+              .filter((id): id is Types.ObjectId => Types.ObjectId.isValid(id.toString()));
+            
+            if (panelMemberIds.length === 0) {
+              this.logger.warn('No valid panel member IDs found');
+              return;
+            }
+            
+            // Fetch employee profiles for panel members
+            const panelMembers = await this.employeeProfileModel
+              .find({ _id: { $in: panelMemberIds } })
+              .select('_id firstName lastName workEmail personalEmail')
+              .exec();
+            
+            if (panelMembers.length === 0) {
+              this.logger.warn('No panel members found in EmployeeProfile');
+              return;
+            }
+            
+            // Extract emails
+            const panelEmails = panelMembers
+              .map(member => member.workEmail || member.personalEmail)
+              .filter((email): email is string => !!email);
+            
+            this.logger.log(`Sending calendar invites to ${panelEmails.length} panel members (BR19)`);
+            
+            // Send calendar invites via timeManagementService
+            if (this.timeManagementService && interview.calendarEventId) {
+              await this.timeManagementService.sendCalendarInvite(
+                interview.calendarEventId,
+                panelEmails
+              );
+            }
+            
+            // Send email notifications to panel members
+            if (this.notificationsService) {
+              const interviewId = (interview as any)._id?.toString() || String((interview as any).id) || '';
+              for (const member of panelMembers) {
+                const email = member.workEmail || member.personalEmail;
+                if (email) {
+                  await this.notificationsService.sendNotification({
+                    type: 'application_status_update' as any,
+                    channel: 'email' as any,
+                    recipientId: member._id.toString(),
+                    recipientEmail: email,
+                    recipientName: `${member.firstName} ${member.lastName}`,
+                    subject: 'Interview Scheduled - Panel Member Invitation',
+                    content: `You have been scheduled as a panel member for an interview on ${interview.scheduledDate}. Interview method: ${interview.method}.${interview.videoLink ? ` Video link: ${interview.videoLink}` : ''}`,
+                    relatedEntityId: interviewId,
+                    relatedEntityType: 'interview',
+                  });
+                }
+              }
+              this.logger.log(`Interview notifications sent to ${panelMembers.length} panel members (BR19)`);
+            }
+          } catch (error) {
+            this.logger.error(`Failed to send panel member invites: ${error.message}`, error.stack);
+          }
+        }
       }
     } catch (error) {
       this.logger.error(`Failed to send interview invite: ${error.message}`, error.stack);
@@ -1453,16 +1518,27 @@ export class RecruitmentService {
     let employeeId: string | undefined;
     if (this.employeeProfileService) {
       try {
-        // In real implementation, candidate details would be fetched from Candidate collection
-        // For now, pass candidateId and let the service handle it
+        // Fetch candidate details from Candidate collection
+        const candidate = await this.candidateModel.findById(offer.candidateId).exec();
+        if (!candidate) {
+          throw new BadRequestException(`Candidate ${offer.candidateId} not found`);
+        }
+        
+        const fullName = candidate.fullName || `${candidate.firstName} ${candidate.lastName}`.trim() || 'Candidate';
+        const email = candidate.personalEmail || '';
+        
+        if (!email) {
+          this.logger.warn(`Candidate ${offer.candidateId} has no email address`);
+        }
+        
         const result = await this.employeeProfileService.createEmployeeFromCandidate(
           offer.candidateId.toString(),
           {
-            fullName: 'Candidate', // TODO: Fetch from Candidate collection when integrated
-            email: 'candidate@example.com', // TODO: Fetch from Candidate collection when integrated
+            fullName: fullName,
+            email: email,
             role: role,
             department: department,
-            startDate: new Date(), // In real implementation, this would come from offer
+            startDate: offer.deadline || new Date(), // Use offer deadline as start date if available
           },
         );
         employeeId = result.employeeId;

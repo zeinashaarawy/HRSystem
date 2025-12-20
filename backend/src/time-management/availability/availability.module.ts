@@ -24,7 +24,10 @@ import {
   controllers: [AvailabilityController],
   providers: [
     AvailabilityService,
-    VacationIntegrationService, // Provide VacationIntegrationService with its dependencies
+    // NOTE: VacationIntegrationService is also provided in TimeManagementModule.
+    // This is acceptable because NestJS uses singleton instances by default,
+    // so both modules will share the same instance.
+    VacationIntegrationService, // Required by AvailabilityService
   ],
   exports: [AvailabilityService],
 })

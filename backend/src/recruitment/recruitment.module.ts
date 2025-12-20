@@ -31,6 +31,7 @@ import { OnboardingSchedulerService } from './services/onboarding-scheduler.serv
 import { OffboardingService } from './services/offboarding.service';
 import { Candidate, CandidateSchema } from '../employee-profile/models/candidate.schema';
 import { EmployeeProfile, EmployeeProfileSchema } from '../employee-profile/models/employee-profile.schema';
+import { EmployeeSystemRole, EmployeeSystemRoleSchema } from '../employee-profile/models/employee-system-role.schema';
 import { PerformanceModule } from '../performance/performance.module';
 import { LeavesModule } from '../leaves/leaves.module';
 import { TimeManagementModule } from '../time-management/time-management.module';
@@ -59,6 +60,8 @@ import { TimeManagementModule } from '../time-management/time-management.module'
       { name: Candidate.name, schema: CandidateSchema },
       // Register EmployeeProfile as 'User' to match schema references
       { name: 'User', schema: EmployeeProfileSchema },
+      { name: EmployeeProfile.name, schema: EmployeeProfileSchema },
+      { name: EmployeeSystemRole.name, schema: EmployeeSystemRoleSchema },
     ]),
     EmployeeProfileModule,
     OrganizationStructureModule,

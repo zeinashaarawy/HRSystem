@@ -1,10 +1,11 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable, Inject, Logger, Optional } from '@nestjs/common';
 import type { IEmployeeProfileService } from '../interfaces/employee-profile.interface';
 import type { IOrganizationStructureService } from '../interfaces/organization-structure.interface';
 import type { ITimeManagementService } from '../interfaces/time-management.interface';
 import { EmployeeProfileService } from '../../employee-profile/employee-profile.service';
 import { OrganizationStructureService } from '../../organization-structure/organization-structure.service';
 import { AvailabilityService } from '../../time-management/availability/availability.service';
+import { NotificationsService } from '../../notifications/notifications.service';
 
 /**
  * Adapter services bridge real subsystem services with recruitment interfaces.
@@ -139,9 +140,20 @@ export class OrganizationStructureServiceAdapter implements IOrganizationStructu
 export class TimeManagementServiceAdapter implements ITimeManagementService {
   private readonly logger = new Logger(TimeManagementServiceAdapter.name);
   private readonly availabilityService: AvailabilityService;
+  private readonly notificationsService?: NotificationsService;
+  // Store event details temporarily for calendar invites
+  private readonly eventDetailsCache = new Map<string, {
+    title: string;
+    description?: string;
+    startTime: Date;
+    endTime: Date;
+    location?: string;
+    videoLink?: string;
+  }>();
 
   constructor(
     @Inject(AvailabilityService) availabilityService: AvailabilityService,
+    @Optional() @Inject(NotificationsService) notificationsService?: NotificationsService,
   ) {
     if (!availabilityService) {
       throw new Error(
@@ -149,13 +161,17 @@ export class TimeManagementServiceAdapter implements ITimeManagementService {
       );
     }
     this.availabilityService = availabilityService;
+    this.notificationsService = notificationsService;
     this.logger.log('✓ Using REAL AvailabilityService');
+    if (notificationsService) {
+      this.logger.log('✓ Using REAL NotificationsService for calendar invites');
+    }
   }
 
   /**
    * Create a calendar event for an interview
-   * NOTE: Calendar event creation is not yet implemented in Time Management module.
-   * This is a placeholder that logs the event details.
+   * Generates an event ID and stores event details for later use in calendar invites.
+   * Since Time Management module doesn't have calendar event creation, we use email notifications instead.
    */
   async createCalendarEvent(eventDetails: {
     title: string;
@@ -166,25 +182,40 @@ export class TimeManagementServiceAdapter implements ITimeManagementService {
     location?: string;
     videoLink?: string;
   }): Promise<{ eventId: string; calendarLink?: string }> {
-    // Log the calendar event creation request
     this.logger.log(`Calendar event creation requested: ${eventDetails.title}`);
     this.logger.log(`Start: ${eventDetails.startTime}, End: ${eventDetails.endTime}`);
     this.logger.log(`Attendees: ${eventDetails.attendees.length} panel members`);
     
-    // TODO: Implement actual calendar event creation when Time Management module adds this feature
-    // For now, return a generated event ID
-    const eventId = `CAL-${Date.now()}`;
-    this.logger.warn(`Calendar event creation not yet implemented. Generated stub event ID: ${eventId}`);
+    // Generate a unique event ID
+    const eventId = `CAL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Store event details for use in sendCalendarInvite
+    this.eventDetailsCache.set(eventId, {
+      title: eventDetails.title,
+      description: eventDetails.description,
+      startTime: eventDetails.startTime,
+      endTime: eventDetails.endTime,
+      location: eventDetails.location,
+      videoLink: eventDetails.videoLink,
+    });
+    
+    // Clean up old cache entries (older than 24 hours)
+    setTimeout(() => {
+      this.eventDetailsCache.delete(eventId);
+    }, 24 * 60 * 60 * 1000);
+    
+    this.logger.log(`Calendar event created with ID: ${eventId}`);
     
     return {
       eventId,
-      calendarLink: `https://calendar.example.com/event/${eventId}`,
+      calendarLink: undefined, // No actual calendar link since we use email notifications
     };
   }
 
   /**
    * Check availability of panel members for a time slot
-   * Uses the real AvailabilityService to check each employee's availability
+   * Uses the real AvailabilityService via GET /time-management/availability?employeeId=...&date=...
+   * Checks each employee individually for the specified date
    */
   async checkAvailability(
     employeeIds: string[],
@@ -263,18 +294,90 @@ export class TimeManagementServiceAdapter implements ITimeManagementService {
   }
 
   /**
-   * Send calendar invite (iCal format) to attendees
-   * NOTE: Calendar invite sending is not yet implemented in Time Management module.
-   * This is a placeholder that logs the invite details.
+   * Send calendar invite via email notifications
+   * Since Time Management module doesn't have calendar invite functionality, we use NotificationsService
+   * to send email notifications with calendar event details formatted as a calendar invite.
    */
   async sendCalendarInvite(eventId: string, attendeeEmails: string[]): Promise<void> {
     this.logger.log(`Calendar invite requested for event ${eventId}`);
     this.logger.log(`Sending invites to ${attendeeEmails.length} attendees`);
     
-    // TODO: Implement actual calendar invite sending when Time Management module adds this feature
-    // For now, just log the request
-    attendeeEmails.forEach((email) => {
-      this.logger.warn(`Would send calendar invite to: ${email} (not yet implemented)`);
+    // Get event details from cache
+    const eventDetails = this.eventDetailsCache.get(eventId);
+    
+    if (!eventDetails) {
+      this.logger.warn(`Event details not found for event ${eventId}. Calendar invite not sent.`);
+      return;
+    }
+    
+    if (!this.notificationsService) {
+      this.logger.warn('NotificationsService not available. Calendar invites will be sent via recruitment service notifications.');
+      return;
+    }
+    
+    // Format event details for email
+    const startTimeStr = eventDetails.startTime.toLocaleString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short',
     });
+    
+    const endTimeStr = eventDetails.endTime.toLocaleString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short',
+    });
+    
+    const duration = Math.round((eventDetails.endTime.getTime() - eventDetails.startTime.getTime()) / (1000 * 60));
+    
+    // Format calendar invite content
+    let calendarContent = `📅 Calendar Invitation\n\n`;
+    calendarContent += `Event: ${eventDetails.title}\n`;
+    if (eventDetails.description) {
+      calendarContent += `Description: ${eventDetails.description}\n`;
+    }
+    calendarContent += `\nDate & Time:\n`;
+    calendarContent += `  Start: ${startTimeStr}\n`;
+    calendarContent += `  End: ${endTimeStr}\n`;
+    calendarContent += `  Duration: ${duration} minutes\n`;
+    
+    if (eventDetails.location) {
+      calendarContent += `\n📍 Location: ${eventDetails.location}\n`;
+    }
+    
+    if (eventDetails.videoLink) {
+      calendarContent += `\n🔗 Video Link: ${eventDetails.videoLink}\n`;
+    }
+    
+    calendarContent += `\n---\n`;
+    calendarContent += `This is an automated calendar invitation. Please add this event to your calendar.\n`;
+    
+    // Send email notifications to all attendees
+    // Note: We need employee IDs to send notifications, but we only have emails
+    // For now, we'll send notifications with the email as recipientId
+    for (const email of attendeeEmails) {
+      try {
+        await this.notificationsService.sendNotification({
+          type: 'interview_invite' as any,
+          channel: 'email' as any,
+          recipientId: email, // Using email as ID since we don't have employee ID
+          recipientEmail: email,
+          recipientName: email.split('@')[0], // Use email prefix as name
+          subject: `Calendar Invitation: ${eventDetails.title}`,
+          content: calendarContent,
+          relatedEntityId: eventId,
+          relatedEntityType: 'calendar_event',
+        });
+        this.logger.log(`Calendar invite sent to ${email} for event ${eventId}`);
+      } catch (error) {
+        this.logger.error(`Failed to send calendar invite to ${email}: ${error.message}`);
+      }
+    }
+    
+    this.logger.log(`Calendar invites sent to ${attendeeEmails.length} attendees for event ${eventId}`);
   }
 }
