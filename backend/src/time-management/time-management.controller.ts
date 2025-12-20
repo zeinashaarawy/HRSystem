@@ -6,10 +6,16 @@ import {
   Get,
   Query,
   BadRequestException,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { TimeManagementService } from './time-management.service';
 import { CreatePunchDto } from './attendance/dto/create-punch.dto';
 import { UpdatePunchDto } from './attendance/dto/update-punch.dto';
+import { TimeExceptionType, PermissionType } from './enums/index';
+import { RolesGuard } from './Shift/guards/roles.guard';
+import { Roles } from './Shift/decorators/roles.decorator';
 
 @Controller('time-management')
 export class TimeManagementController {
@@ -17,11 +23,38 @@ export class TimeManagementController {
 
   // ------------------- RECORD A PUNCH -------------------
   @Post('punch')
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   async recordPunch(@Body() dto: CreatePunchDto) {
-    if (!dto.employeeId || !dto.timestamp || !dto.type) {
-      throw new BadRequestException('Missing required punch data');
+    try {
+      // Transform timestamp string to Date if needed
+      if (dto.timestamp && typeof dto.timestamp === 'string') {
+        dto.timestamp = new Date(dto.timestamp);
+      }
+      
+      if (!dto.employeeId || !dto.timestamp || !dto.type) {
+        throw new BadRequestException('Missing required punch data');
+      }
+
+      // Validate employeeId format
+      if (!dto.employeeId.match(/^[0-9a-fA-F]{24}$/)) {
+        throw new BadRequestException('Invalid employee ID format');
+      }
+
+      return await this.tmService.recordPunch(dto);
+    } catch (error) {
+      // Log the error for debugging
+      console.error('[TimeManagementController] Error in recordPunch:', error);
+      
+      // Re-throw BadRequestException as-is
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      
+      // Wrap other errors
+      throw new BadRequestException(
+        error.message || 'Failed to record punch',
+      );
     }
-    return this.tmService.recordPunch(dto);
   }
 
   // ------------------- GET ATTENDANCE -------------------
@@ -49,17 +82,39 @@ export class TimeManagementController {
   @Post('exceptions')
   async createException(
     @Body()
-    body: { employeeId: string; recordId: string; reason: string; assignedToId: string },
+    body: {
+      employeeId: string;
+      recordId: string;
+      reason: string;
+      assignedToId: string;
+      type?: string;
+      permissionType?: string; // BR-TM-16: Permission type (EARLY_IN, LATE_OUT, etc.)
+      durationMinutes?: number; // BR-TM-16: Duration in minutes
+      requestedDate?: string; // BR-TM-17: Date for which permission is requested (ISO string)
+    },
   ) {
-    if (!body.employeeId || !body.recordId || !body.reason || !body.assignedToId) {
+    if (
+      !body.employeeId ||
+      !body.recordId ||
+      !body.reason ||
+      !body.assignedToId
+    ) {
       throw new BadRequestException('Missing required fields');
     }
+
+    const exceptionType = body.type ? (TimeExceptionType[body.type as keyof typeof TimeExceptionType] || undefined) : undefined;
+    const permissionType = body.permissionType ? (PermissionType[body.permissionType as keyof typeof PermissionType] || undefined) : undefined;
+    const requestedDate = body.requestedDate ? new Date(body.requestedDate) : undefined;
 
     return this.tmService.createTimeException(
       body.employeeId,
       body.recordId,
       body.reason,
-      body.assignedToId, // pass the required fourth argument
+      body.assignedToId,
+      exceptionType,
+      permissionType,
+      body.durationMinutes,
+      requestedDate,
     );
   }
 
@@ -67,7 +122,11 @@ export class TimeManagementController {
   @Post('attendance/correct')
   async correctAttendance(
     @Body()
-    body: { employeeId: string; date: string; punches: UpdatePunchDto[] },
+    body: {
+      employeeId: string;
+      date: string;
+      punches: UpdatePunchDto[];
+    },
   ) {
     if (!body.employeeId || !body.date || !body.punches) {
       throw new BadRequestException('Missing required fields');
@@ -83,9 +142,7 @@ export class TimeManagementController {
 
   // ------------------- MANUAL MISSED PUNCH DETECTION -------------------
   @Post('attendance/detect-missed')
-  async detectMissedPunch(
-    @Body() body: { employeeId: string; date: string },
-  ) {
+  async detectMissedPunch(@Body() body: { employeeId: string; date: string }) {
     if (!body.employeeId || !body.date) {
       throw new BadRequestException('Missing employeeId/date');
     }
@@ -94,7 +151,7 @@ export class TimeManagementController {
     return this.tmService.detectMissedPunches(body.employeeId, dateObj);
   }
 
-  @Get('notifications/:employeeId')
+  @Get('notifications/employee/:employeeId')
   async getNotifications(@Param('employeeId') employeeId: string) {
     return this.tmService.getNotifications(employeeId);
   }
@@ -105,6 +162,8 @@ export class TimeManagementController {
    * PATCH /time-management/exceptions/:id/approve
    */
   @Post('exceptions/:id/approve')
+  @UseGuards(RolesGuard)
+  @Roles('HR Manager', 'SYSTEM_ADMIN', 'HR_ADMIN', 'department head')
   async approveException(
     @Param('id') exceptionId: string,
     @Body() body: { approvedBy: string; notes?: string },
@@ -112,7 +171,11 @@ export class TimeManagementController {
     if (!body.approvedBy) {
       throw new BadRequestException('approvedBy is required');
     }
-    return this.tmService.approveException(exceptionId, body.approvedBy, body.notes);
+    return this.tmService.approveException(
+      exceptionId,
+      body.approvedBy,
+      body.notes,
+    );
   }
 
   /**
@@ -120,6 +183,8 @@ export class TimeManagementController {
    * PATCH /time-management/exceptions/:id/reject
    */
   @Post('exceptions/:id/reject')
+  @UseGuards(RolesGuard)
+  @Roles('HR Manager', 'SYSTEM_ADMIN', 'HR_ADMIN', 'department head')
   async rejectException(
     @Param('id') exceptionId: string,
     @Body() body: { rejectedBy: string; reason?: string },
@@ -127,7 +192,11 @@ export class TimeManagementController {
     if (!body.rejectedBy) {
       throw new BadRequestException('rejectedBy is required');
     }
-    return this.tmService.rejectException(exceptionId, body.rejectedBy, body.reason);
+    return this.tmService.rejectException(
+      exceptionId,
+      body.rejectedBy,
+      body.reason,
+    );
   }
 
   /**
@@ -135,6 +204,8 @@ export class TimeManagementController {
    * GET /time-management/exceptions
    */
   @Get('exceptions')
+  @UseGuards(RolesGuard)
+  @Roles('HR Manager', 'SYSTEM_ADMIN', 'HR_ADMIN', 'department head')
   async getAllExceptions(
     @Query('status') status?: string,
     @Query('assignedTo') assignedTo?: string,
@@ -148,6 +219,8 @@ export class TimeManagementController {
    * POST /time-management/exceptions/:id/escalate
    */
   @Post('exceptions/:id/escalate')
+  @UseGuards(RolesGuard)
+  @Roles('HR Manager', 'SYSTEM_ADMIN', 'HR_ADMIN', 'department head')
   async escalateException(
     @Param('id') exceptionId: string,
     @Body() body: { escalatedTo: string; reason?: string },
@@ -155,6 +228,10 @@ export class TimeManagementController {
     if (!body.escalatedTo) {
       throw new BadRequestException('escalatedTo is required');
     }
-    return this.tmService.escalateException(exceptionId, body.escalatedTo, body.reason);
+    return this.tmService.escalateException(
+      exceptionId,
+      body.escalatedTo,
+      body.reason,
+    );
   }
 }

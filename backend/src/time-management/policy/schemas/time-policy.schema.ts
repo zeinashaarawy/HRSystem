@@ -1,6 +1,6 @@
-import { Schema, Prop, SchemaFactory } from "@nestjs/mongoose";
-import { Types } from "mongoose";
-import { HydratedDocument } from "mongoose";
+import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
+import { Types } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 /**
  * Policy Scope - determines who the policy applies to
@@ -32,7 +32,7 @@ export enum RoundingRule {
  * Overtime Rule Configuration
  * Embedded in TimePolicy (not a separate collection)
  * Contains calculation parameters for overtime computation
- * 
+ *
  * Note: This is different from the OvertimeRule schema in schedule/
  * which is a standalone document. This config is embedded in policies.
  */
@@ -47,7 +47,7 @@ export type OvertimeRuleConfig = {
 /**
  * Lateness Rule Configuration
  * Embedded in TimePolicy for lateness penalty calculation
- * 
+ *
  * Note: This extends the basic LatenessRule schema with additional fields
  * needed for policy computation (caps, cumulative thresholds)
  */
@@ -56,6 +56,15 @@ export type LatenessRuleConfig = {
   deductionPerMinute: number; // Penalty amount per minute late
   cumulativeThresholdMinutes?: number; // Total lateness before additional penalty
   maxDeductionPerDay?: number; // Maximum deduction per day (cap)
+  // Repeated Lateness Tracking (US 12)
+  repeatedLatenessThreshold?: {
+    incidentsPerWeek?: number; // Max late incidents per week before escalation
+    incidentsPerMonth?: number; // Max late incidents per month before escalation
+    totalMinutesPerWeek?: number; // Max total minutes late per week
+    totalMinutesPerMonth?: number; // Max total minutes late per month
+    autoEscalate?: boolean; // Auto-escalate when threshold exceeded
+    escalateToRole?: string; // Role to escalate to (HR_ADMIN, HR_MANAGER, etc.)
+  };
 };
 
 /**
@@ -76,6 +85,37 @@ export type WeekendRuleConfig = {
   enabled: boolean; // Whether weekend rules apply
   weekendDays: number[]; // Day numbers (0 = Sunday, 6 = Saturday)
   specialRate?: number; // Special rate for weekend work
+};
+
+/**
+ * Permission Validation Rule Configuration
+ * BR-TM-16, BR-TM-17, BR-TM-18: Permission validation rules
+ * Defines limits and validation for time permission requests
+ */
+export type PermissionValidationRuleConfig = {
+  // Permission type limits (in minutes)
+  maxDurationMinutes?: {
+    EARLY_IN?: number; // Maximum early in duration
+    LATE_OUT?: number; // Maximum late out duration
+    OUT_OF_HOURS?: number; // Maximum out of hours duration
+    TOTAL?: number; // Maximum total adjustment duration
+  };
+  
+  // Date validation requirements
+  requireContractStartDate?: boolean; // Must be after contract start date
+  requireFinancialCalendar?: boolean; // Must be within financial calendar period
+  requireProbationEndDate?: boolean; // Must be after probation period ends
+  
+  // Approval requirements
+  requirePreApproval?: boolean; // Permission must be approved before use
+  requireManagerApproval?: boolean; // Requires manager approval
+  requireHRApproval?: boolean; // Requires HR approval for certain types
+  
+  // Payroll and benefits impact
+  affectsPayroll?: boolean; // Permission affects payroll calculations
+  affectsBenefits?: boolean; // Permission affects benefits calculations
+  payrollImpactType?: 'OVERTIME' | 'SHORT_TIME' | 'ADJUSTMENT' | 'NONE'; // How it affects payroll
+  benefitsImpactType?: 'ACCRUAL' | 'DEDUCTION' | 'NONE'; // How it affects benefits
 };
 
 export type TimePolicyDocument = HydratedDocument<TimePolicy>;
@@ -113,6 +153,10 @@ export class TimePolicy {
   @Prop({ type: Object, required: false })
   weekendRule?: WeekendRuleConfig;
 
+  // Permission validation rules (BR-TM-16, BR-TM-17, BR-TM-18)
+  @Prop({ type: Object, required: false })
+  permissionValidationRule?: PermissionValidationRuleConfig;
+
   // Rounding rules
   @Prop({ enum: RoundingRule, default: RoundingRule.NONE })
   roundingRule: RoundingRule;
@@ -135,4 +179,3 @@ export class TimePolicy {
 }
 
 export const TimePolicySchema = SchemaFactory.createForClass(TimePolicy);
-

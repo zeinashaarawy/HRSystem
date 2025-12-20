@@ -1,12 +1,34 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { AttendanceRecord, AttendanceRecordDocument } from '../../attendance/schemas/attendance-record.schema';
-import { TimeException, TimeExceptionDocument } from '../../attendance/schemas/time-exception.schema';
-import { TimePolicy, TimePolicyDocument, RoundingRule, PolicyScope } from '../schemas/time-policy.schema';
-import { PenaltyRecord, PenaltyRecordDocument, PenaltyType, PenaltyStatus } from '../schemas/penalty-record.schema';
-import { OvertimeRecord, OvertimeRecordDocument, OvertimeStatus } from '../schemas/overtime-record.schema';
+import {
+  AttendanceRecord,
+  AttendanceRecordDocument,
+} from '../../attendance/schemas/attendance-record.schema';
+import {
+  TimeException,
+  TimeExceptionDocument,
+} from '../../attendance/schemas/time-exception.schema';
+import {
+  TimePolicy,
+  TimePolicyDocument,
+  RoundingRule,
+  PolicyScope,
+} from '../schemas/time-policy.schema';
+import {
+  PenaltyRecord,
+  PenaltyRecordDocument,
+  PenaltyType,
+  PenaltyStatus,
+} from '../schemas/penalty-record.schema';
+import {
+  OvertimeRecord,
+  OvertimeRecordDocument,
+  OvertimeStatus,
+} from '../schemas/overtime-record.schema';
 import { TimeExceptionStatus, TimeExceptionType } from '../../enums/index';
+import { Holiday, HolidayDocument } from '../../holiday/schemas/holiday.schema';
+import { VacationIntegrationService } from '../../attendance/services/vacation-integration.service';
 
 export interface ComputedResult {
   workedMinutes: number;
@@ -21,44 +43,59 @@ export interface ComputedResult {
 @Injectable()
 export class PolicyEngineService {
   constructor(
-    @InjectModel(TimePolicy.name) private policyModel: Model<TimePolicyDocument>,
-    @InjectModel(AttendanceRecord.name) private attendanceModel: Model<AttendanceRecordDocument>,
-    @InjectModel(TimeException.name) private exceptionModel: Model<TimeExceptionDocument>,
-    @InjectModel(PenaltyRecord.name) private penaltyModel: Model<PenaltyRecordDocument>,
-    @InjectModel(OvertimeRecord.name) private overtimeModel: Model<OvertimeRecordDocument>,
+    @InjectModel(TimePolicy.name)
+    private policyModel: Model<TimePolicyDocument>,
+    @InjectModel(AttendanceRecord.name)
+    private attendanceModel: Model<AttendanceRecordDocument>,
+    @InjectModel(TimeException.name)
+    private exceptionModel: Model<TimeExceptionDocument>,
+    @InjectModel(PenaltyRecord.name)
+    private penaltyModel: Model<PenaltyRecordDocument>,
+    @InjectModel(OvertimeRecord.name)
+    private overtimeModel: Model<OvertimeRecordDocument>,
+    @InjectModel(Holiday.name)
+    private holidayModel: Model<HolidayDocument>,
+    private vacationIntegrationService: VacationIntegrationService,
   ) {}
 
   /**
    * Get applicable policy for an employee on a given date
    */
-  async getApplicablePolicy(employeeId: Types.ObjectId, date: Date): Promise<TimePolicyDocument | null> {
+  async getApplicablePolicy(
+    employeeId: Types.ObjectId,
+    date: Date,
+  ): Promise<TimePolicyDocument | null> {
     // Priority: Employee-specific > Department > Global
-    const employeePolicy = await this.policyModel.findOne({
-      scope: PolicyScope.EMPLOYEE,
-      employeeId,
-      active: true,
-      $or: [
-        { effectiveFrom: { $lte: date }, effectiveTo: { $gte: date } },
-        { effectiveFrom: { $lte: date }, effectiveTo: null },
-        { effectiveFrom: null, effectiveTo: { $gte: date } },
-        { effectiveFrom: null, effectiveTo: null },
-      ],
-    }).sort({ createdAt: -1 });
+    const employeePolicy = await this.policyModel
+      .findOne({
+        scope: PolicyScope.EMPLOYEE,
+        employeeId,
+        active: true,
+        $or: [
+          { effectiveFrom: { $lte: date }, effectiveTo: { $gte: date } },
+          { effectiveFrom: { $lte: date }, effectiveTo: null },
+          { effectiveFrom: null, effectiveTo: { $gte: date } },
+          { effectiveFrom: null, effectiveTo: null },
+        ],
+      })
+      .sort({ createdAt: -1 });
 
     if (employeePolicy) return employeePolicy;
 
     // TODO: Get department from employee profile
     // For now, check global policies
-    const globalPolicy = await this.policyModel.findOne({
-      scope: PolicyScope.GLOBAL,
-      active: true,
-      $or: [
-        { effectiveFrom: { $lte: date }, effectiveTo: { $gte: date } },
-        { effectiveFrom: { $lte: date }, effectiveTo: null },
-        { effectiveFrom: null, effectiveTo: { $gte: date } },
-        { effectiveFrom: null, effectiveTo: null },
-      ],
-    }).sort({ createdAt: -1 });
+    const globalPolicy = await this.policyModel
+      .findOne({
+        scope: PolicyScope.GLOBAL,
+        active: true,
+        $or: [
+          { effectiveFrom: { $lte: date }, effectiveTo: { $gte: date } },
+          { effectiveFrom: { $lte: date }, effectiveTo: null },
+          { effectiveFrom: null, effectiveTo: { $gte: date } },
+          { effectiveFrom: null, effectiveTo: null },
+        ],
+      })
+      .sort({ createdAt: -1 });
 
     return globalPolicy;
   }
@@ -73,10 +110,35 @@ export class PolicyEngineService {
     scheduledEndTime?: Date,
     scheduledMinutes?: number,
   ): Promise<ComputedResult> {
-    const policy = await this.getApplicablePolicy(attendanceRecord.employeeId, recordDate);
-    
+    const policy = await this.getApplicablePolicy(
+      attendanceRecord.employeeId,
+      recordDate,
+    );
+
     if (!policy) {
-      throw new Error(`No applicable policy found for employee ${attendanceRecord.employeeId} on ${recordDate}`);
+      throw new Error(
+        `No applicable policy found for employee ${attendanceRecord.employeeId} on ${recordDate}`,
+      );
+    }
+
+    // Check if employee is on approved leave (US 16 - Vacation Integration)
+    const isOnLeave = await this.vacationIntegrationService.isEmployeeOnLeave(
+      attendanceRecord.employeeId,
+      recordDate,
+    );
+
+    // If on leave, exclude from worked minutes calculation
+    if (isOnLeave.onLeave) {
+      // Return zero worked minutes for leave days
+      return {
+        workedMinutes: 0,
+        overtimeMinutes: 0,
+        latenessMinutes: 0,
+        shortTimeMinutes: 0,
+        penalties: [],
+        overtime: [],
+        appliedPolicy: policy,
+      };
     }
 
     // Get approved exceptions for this record
@@ -85,11 +147,21 @@ export class PolicyEngineService {
       status: TimeExceptionStatus.APPROVED,
     });
 
-    // Calculate worked minutes from punches
-    let workedMinutes = this.calculateWorkedMinutes(attendanceRecord.punches);
+    // Get punch policy from shift template if available (default: FIRST_LAST)
+    const punchPolicy = 'FIRST_LAST'; // TODO: Get from shift template/assignment
     
+    // Calculate worked minutes from punches
+    let workedMinutes = this.calculateWorkedMinutes(
+      attendanceRecord.punches,
+      punchPolicy,
+    );
+
     // Apply rounding
-    workedMinutes = this.applyRounding(workedMinutes, policy.roundingRule, policy.roundingIntervalMinutes);
+    workedMinutes = this.applyRounding(
+      workedMinutes,
+      policy.roundingRule,
+      policy.roundingIntervalMinutes,
+    );
 
     // Calculate lateness
     let latenessMinutes = 0;
@@ -99,13 +171,19 @@ export class PolicyEngineService {
       const recordDateOnly = new Date(recordDate);
       recordDateOnly.setHours(0, 0, 0, 0);
       scheduledDate.setHours(0, 0, 0, 0);
-      
+
       // Only calculate lateness if scheduled time is on the same date as record
       if (scheduledDate.getTime() === recordDateOnly.getTime()) {
-        latenessMinutes = this.calculateLateness(attendanceRecord.punches, scheduledStartTime, policy.latenessRule);
+        latenessMinutes = this.calculateLateness(
+          attendanceRecord.punches,
+          scheduledStartTime,
+          policy.latenessRule,
+        );
       } else {
         // If dates don't match, don't calculate lateness (likely data error)
-        console.warn(`Scheduled start time date (${scheduledDate.toISOString()}) doesn't match record date (${recordDateOnly.toISOString()}). Skipping lateness calculation.`);
+        console.warn(
+          `Scheduled start time date (${scheduledDate.toISOString()}) doesn't match record date (${recordDateOnly.toISOString()}). Skipping lateness calculation.`,
+        );
       }
     }
 
@@ -121,6 +199,9 @@ export class PolicyEngineService {
 
     // Check if it's a weekend
     const isWeekend = this.isWeekend(recordDate, policy.weekendRule);
+
+    // Check if it's a holiday or rest day
+    const isHoliday = await this.isHoliday(recordDate);
 
     // Apply exceptions
     const exceptionAdjustments = this.applyExceptions(approvedExceptions, {
@@ -140,14 +221,14 @@ export class PolicyEngineService {
       recordDate,
     );
 
-    // Compute overtime records
+    // Compute overtime records (holidays affect overtime multipliers)
     const overtimeRecords = await this.computeOvertime(
       attendanceRecord,
       policy,
       overtimeMinutes,
       workedMinutes,
       scheduledMinutes || 0,
-      isWeekend,
+      isWeekend || isHoliday, // Holidays are treated like weekends for overtime
       exceptionAdjustments,
       recordDate,
     );
@@ -165,31 +246,75 @@ export class PolicyEngineService {
 
   /**
    * Calculate worked minutes from punches
+   * Supports multiple punch policies: MULTIPLE, FIRST_LAST, ONLY_FIRST
    */
-  private calculateWorkedMinutes(punches: Array<{ type: string; time: Date }>): number {
+  private calculateWorkedMinutes(
+    punches: Array<{ type: string; time: Date }>,
+    punchPolicy: string = 'FIRST_LAST',
+  ): number {
     if (punches.length === 0) return 0;
 
-    const sortedPunches = [...punches].sort((a, b) => a.time.getTime() - b.time.getTime());
-    let totalMinutes = 0;
-    let lastInTime: Date | null = null;
+    const sortedPunches = [...punches].sort(
+      (a, b) => a.time.getTime() - b.time.getTime(),
+    );
 
-    for (const punch of sortedPunches) {
-      if (punch.type === 'IN') {
-        lastInTime = punch.time;
-      } else if (punch.type === 'OUT' && lastInTime) {
-        const diffMs = punch.time.getTime() - lastInTime.getTime();
-        totalMinutes += Math.floor(diffMs / (1000 * 60));
-        lastInTime = null;
+    // Handle ONLY_FIRST policy - only count first IN/OUT pair
+    if (punchPolicy === 'ONLY_FIRST') {
+      const firstIn = sortedPunches.find((p) => p.type === 'IN');
+      const firstOut = sortedPunches.find((p) => p.type === 'OUT');
+      if (firstIn && firstOut && firstOut.time > firstIn.time) {
+        const diffMs = firstOut.time.getTime() - firstIn.time.getTime();
+        return Math.floor(diffMs / (1000 * 60));
       }
+      return 0;
     }
 
-    return totalMinutes;
+    // Handle FIRST_LAST policy - use first IN and last OUT
+    if (punchPolicy === 'FIRST_LAST') {
+      const firstIn = sortedPunches.find((p) => p.type === 'IN');
+      const lastOut = [...sortedPunches]
+        .reverse()
+        .find((p) => p.type === 'OUT');
+      if (firstIn && lastOut && lastOut.time > firstIn.time) {
+        const diffMs = lastOut.time.getTime() - firstIn.time.getTime();
+        return Math.floor(diffMs / (1000 * 60));
+      }
+      return 0;
+    }
+
+    // Handle MULTIPLE policy - sum all IN/OUT pairs
+    if (punchPolicy === 'MULTIPLE') {
+      let totalMinutes = 0;
+      let lastInTime: Date | null = null;
+
+      for (const punch of sortedPunches) {
+        if (punch.type === 'IN') {
+          lastInTime = punch.time;
+        } else if (punch.type === 'OUT' && lastInTime) {
+          const diffMs = punch.time.getTime() - lastInTime.getTime();
+          const minutes = Math.floor(diffMs / (1000 * 60));
+          if (minutes > 0) {
+            totalMinutes += minutes;
+          }
+          lastInTime = null; // Reset after pairing
+        }
+      }
+
+      return totalMinutes;
+    }
+
+    // Default: FIRST_LAST behavior
+    return this.calculateWorkedMinutes(sortedPunches, 'FIRST_LAST');
   }
 
   /**
    * Apply rounding rules
    */
-  private applyRounding(minutes: number, rule: RoundingRule, interval: number): number {
+  private applyRounding(
+    minutes: number,
+    rule: RoundingRule,
+    interval: number,
+  ): number {
     if (rule === RoundingRule.NONE || interval === 0) return minutes;
 
     switch (rule) {
@@ -212,19 +337,26 @@ export class PolicyEngineService {
     scheduledStart: Date,
     latenessRule?: any,
   ): number {
-    const firstInPunch = punches.find(p => p.type === 'IN');
+    const firstInPunch = punches.find((p) => p.type === 'IN');
     if (!firstInPunch) return 0;
 
     const gracePeriod = latenessRule?.gracePeriodMinutes || 0;
-    
+
     // Ensure both dates are Date objects
-    const punchTime = firstInPunch.time instanceof Date ? firstInPunch.time : new Date(firstInPunch.time);
-    const scheduledTime = scheduledStart instanceof Date ? scheduledStart : new Date(scheduledStart);
-    
+    const punchTime =
+      firstInPunch.time instanceof Date
+        ? firstInPunch.time
+        : new Date(firstInPunch.time);
+    const scheduledTime =
+      scheduledStart instanceof Date
+        ? scheduledStart
+        : new Date(scheduledStart);
+
     // Calculate difference in minutes
-    const timeDiffMinutes = (punchTime.getTime() - scheduledTime.getTime()) / (1000 * 60);
+    const timeDiffMinutes =
+      (punchTime.getTime() - scheduledTime.getTime()) / (1000 * 60);
     const lateBy = Math.max(0, timeDiffMinutes - gracePeriod);
-    
+
     return Math.floor(lateBy);
   }
 
@@ -254,7 +386,7 @@ export class PolicyEngineService {
     latenessMinutes: number;
     shortTimeMinutes: number;
   } {
-    let adjusted = { ...baseValues };
+    const adjusted = { ...baseValues };
 
     for (const exception of exceptions) {
       switch (exception.type) {
@@ -300,7 +432,10 @@ export class PolicyEngineService {
       let amount = penaltyMinutes * (latenessRule.deductionPerMinute || 0);
 
       // Apply max deduction cap
-      if (latenessRule.maxDeductionPerDay && amount > latenessRule.maxDeductionPerDay) {
+      if (
+        latenessRule.maxDeductionPerDay &&
+        amount > latenessRule.maxDeductionPerDay
+      ) {
         amount = latenessRule.maxDeductionPerDay;
       }
 
@@ -328,13 +463,14 @@ export class PolicyEngineService {
     if (policy.shortTimeRule && exceptionAdjustments.shortTimeMinutes > 0) {
       const shortTimeRule = policy.shortTimeRule;
       const penaltyMinutes = exceptionAdjustments.shortTimeMinutes;
-      
+
       // Check if grace period applies
       const gracePeriod = shortTimeRule.gracePeriodMinutes || 0;
       const effectiveShortMinutes = Math.max(0, penaltyMinutes - gracePeriod);
-      
+
       if (effectiveShortMinutes > 0) {
-        let amount = effectiveShortMinutes * (shortTimeRule.penaltyPerMinute || 0);
+        let amount =
+          effectiveShortMinutes * (shortTimeRule.penaltyPerMinute || 0);
 
         // Apply policy penalty cap
         if (policy.penaltyCapPerDay && amount > policy.penaltyCapPerDay) {
@@ -404,14 +540,18 @@ export class PolicyEngineService {
 
     // Apply daily cap if set
     let cappedOvertime = effectiveOvertime;
-    if (overtimeRule.dailyCapMinutes && cappedOvertime > overtimeRule.dailyCapMinutes) {
+    if (
+      overtimeRule.dailyCapMinutes &&
+      cappedOvertime > overtimeRule.dailyCapMinutes
+    ) {
       cappedOvertime = overtimeRule.dailyCapMinutes;
     }
 
     // Determine multiplier (weekend vs regular)
-    const multiplier = isWeekend && overtimeRule.weekendMultiplier
-      ? overtimeRule.weekendMultiplier
-      : overtimeRule.multiplier;
+    const multiplier =
+      isWeekend && overtimeRule.weekendMultiplier
+        ? overtimeRule.weekendMultiplier
+        : overtimeRule.multiplier;
 
     // Calculate amount (assuming base rate is 1.0 per minute)
     const regularMinutes = scheduledMinutes;
@@ -445,7 +585,8 @@ export class PolicyEngineService {
     scheduledEndTime?: Date,
     scheduledMinutes?: number,
   ): Promise<ComputedResult> {
-    const attendanceRecord = await this.attendanceModel.findById(attendanceRecordId);
+    const attendanceRecord =
+      await this.attendanceModel.findById(attendanceRecordId);
     if (!attendanceRecord) {
       throw new Error(`Attendance record ${attendanceRecordId} not found`);
     }
@@ -471,6 +612,29 @@ export class PolicyEngineService {
   }
 
   /**
+   * Check if a date is a holiday
+   */
+  private async isHoliday(date: Date): Promise<boolean> {
+    const dateOnly = new Date(date);
+    dateOnly.setHours(0, 0, 0, 0);
+    const dateEnd = new Date(date);
+    dateEnd.setHours(23, 59, 59, 999);
+
+    const holiday = await this.holidayModel
+      .findOne({
+        active: true,
+        startDate: { $lte: dateEnd },
+        $or: [
+          { endDate: null, startDate: { $gte: dateOnly } },
+          { endDate: { $gte: dateOnly } },
+        ],
+      })
+      .exec();
+
+    return !!holiday;
+  }
+
+  /**
    * Save computed results to database
    */
   async saveComputedResults(result: ComputedResult): Promise<void> {
@@ -485,4 +649,3 @@ export class PolicyEngineService {
     }
   }
 }
-

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule } from '@nestjs/jwt';
 
@@ -37,7 +37,7 @@ import { LeavesController } from './leaves.controller';
     ]),
 
     EmployeeProfileModule,
-    TimeManagementModule,
+    forwardRef(() => TimeManagementModule),
   ],
   controllers: [LeavesController],
   providers: [LeavesService],

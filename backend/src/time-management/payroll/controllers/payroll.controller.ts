@@ -1,10 +1,22 @@
-import { Controller, Get, Post, Body, Param, Query, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  BadRequestException,
+  UseGuards,
+} from '@nestjs/common';
 import { PayrollService } from '../services/payroll.service';
 import { PrePayrollService } from '../services/pre-payroll.service';
 import { Types } from 'mongoose';
 import { ParseObjectIdPipe } from '../../../common/pipes/parse-object-id.pipe';
+import { RolesGuard } from '../../Shift/guards/roles.guard';
+import { Roles } from '../../Shift/decorators/roles.decorator';
 
 @Controller('payroll')
+@UseGuards(RolesGuard)
 export class PayrollController {
   constructor(
     private readonly payrollService: PayrollService,
@@ -12,8 +24,10 @@ export class PayrollController {
   ) {}
 
   @Post('sync')
+  @Roles('HR Manager', 'SYSTEM_ADMIN', 'Payroll Manager', 'Payroll Specialist')
   async syncPayroll(
-    @Body() body: {
+    @Body()
+    body: {
       periodStart: string;
       periodEnd: string;
       employeeIds?: string[];
@@ -22,28 +36,35 @@ export class PayrollController {
   ) {
     const periodStart = new Date(body.periodStart);
     const periodEnd = new Date(body.periodEnd);
-    const employeeIds = body.employeeIds?.map(id => new Types.ObjectId(id));
-    const initiatedBy = body.initiatedBy ? new Types.ObjectId(body.initiatedBy) : undefined;
+    const employeeIds = body.employeeIds?.map((id) => new Types.ObjectId(id));
+    const initiatedBy = body.initiatedBy
+      ? new Types.ObjectId(body.initiatedBy)
+      : undefined;
 
-    return this.payrollService.syncPayroll(periodStart, periodEnd, initiatedBy, employeeIds);
+    return this.payrollService.syncPayroll(
+      periodStart,
+      periodEnd,
+      initiatedBy,
+      employeeIds,
+    );
   }
 
   @Get('sync-status/:id')
+  @Roles('HR Manager', 'SYSTEM_ADMIN', 'Payroll Manager', 'Payroll Specialist', 'HR_ADMIN')
   async getSyncStatus(@Param('id', ParseObjectIdPipe) id: Types.ObjectId) {
     return this.payrollService.getSyncStatus(id);
   }
 
   @Post('sync/:id/retry')
+  @Roles('HR Manager', 'SYSTEM_ADMIN', 'Payroll Manager', 'Payroll Specialist')
   async retrySync(@Param('id', ParseObjectIdPipe) id: Types.ObjectId) {
     return this.payrollService.retryPayrollSync(id);
   }
 
   @Post('pre-payroll/validate')
+  @Roles('HR Manager', 'SYSTEM_ADMIN', 'Payroll Manager', 'Payroll Specialist', 'HR_ADMIN')
   async validatePrePayroll(
-    @Body() body: {
-      periodStart: string;
-      periodEnd: string;
-    },
+    @Body() body: { periodStart: string; periodEnd: string },
   ) {
     const periodStart = new Date(body.periodStart);
     const periodEnd = new Date(body.periodEnd);
@@ -52,8 +73,10 @@ export class PayrollController {
   }
 
   @Post('pre-payroll/closure')
+  @Roles('HR Manager', 'SYSTEM_ADMIN', 'Payroll Manager')
   async runPrePayrollClosure(
-    @Body() body: {
+    @Body()
+    body: {
       periodStart: string;
       periodEnd: string;
       escalationDeadlineHours?: number;
@@ -71,13 +94,16 @@ export class PayrollController {
   }
 
   @Get('payload')
+  @Roles('HR Manager', 'SYSTEM_ADMIN', 'Payroll Manager', 'Payroll Specialist', 'HR_ADMIN')
   async generatePayload(
     @Query('periodStart') periodStart: string,
     @Query('periodEnd') periodEnd: string,
     @Query('employeeIds') employeeIds?: string,
   ) {
     if (!periodStart || !periodEnd) {
-      throw new BadRequestException('periodStart and periodEnd query parameters are required');
+      throw new BadRequestException(
+        'periodStart and periodEnd query parameters are required',
+      );
     }
 
     const start = new Date(periodStart);
@@ -96,10 +122,9 @@ export class PayrollController {
     }
 
     const empIds = employeeIds
-      ? employeeIds.split(',').map(id => new Types.ObjectId(id))
+      ? employeeIds.split(',').map((id) => new Types.ObjectId(id))
       : undefined;
 
     return this.payrollService.generatePayrollPayload(start, end, empIds);
   }
 }
-
