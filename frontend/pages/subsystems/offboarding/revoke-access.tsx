@@ -25,9 +25,8 @@ export default function RevokeSystemAccess() {
     try {
       setLoading(true);
       const response = await getAllTerminationRequests();
-      // Filter for approved terminations that may need access revocation
-      const approved = response.data.filter((t: TerminationRequest) => t.status === 'approved');
-      setTerminations(approved);
+      // Show all terminations - System Admin can see all to decide which need access revocation
+      setTerminations(response.data || []);
       setError(null);
     } catch (err: any) {
       console.error('Error fetching terminations:', err);
@@ -57,21 +56,36 @@ export default function RevokeSystemAccess() {
 
   const getEmployeeInfo = (termination: any) => {
     const employee = termination.employeeId;
-    if (typeof employee === 'object' && employee !== null) {
+    
+    // Handle populated employee object
+    if (employee && typeof employee === 'object' && employee._id) {
       return {
-        id: employee._id?.toString() || termination.employeeId?.toString() || '',
-        number: employee.employeeNumber || 'N/A',
+        id: employee._id.toString(),
+        number: employee.employeeNumber || 'Unknown',
         name: employee.firstName && employee.lastName 
           ? `${employee.firstName} ${employee.lastName}` 
-          : employee.employeeNumber || 'N/A',
-        email: employee.workEmail || employee.personalEmail || 'N/A',
+          : employee.employeeNumber || 'Unknown',
+        email: employee.workEmail || employee.personalEmail || 'No email',
       };
     }
+    
+    // Handle unpopulated employee ID (just string/ObjectId)
+    if (employee) {
+      const empId = typeof employee === 'string' ? employee : employee.toString();
+      return {
+        id: empId,
+        number: empId.slice(-8),
+        name: `Employee ${empId.slice(-8)}`,
+        email: 'Not available',
+      };
+    }
+    
+    // Fallback - should not happen
     return {
-      id: String(termination.employeeId || ''),
-      number: 'N/A',
-      name: 'N/A',
-      email: 'N/A',
+      id: '',
+      number: 'Unknown',
+      name: 'Unknown Employee',
+      email: 'Not available',
     };
   };
 
@@ -111,7 +125,7 @@ export default function RevokeSystemAccess() {
 
         {!loading && terminations.length === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
-            <p className="text-slate-200/80">No approved terminations found. Access revocation is only needed for approved terminations.</p>
+            <p className="text-slate-200/80">No termination requests found.</p>
           </div>
         )}
 
@@ -148,14 +162,14 @@ export default function RevokeSystemAccess() {
                   <div className="mt-4 pt-4 border-t border-white/10">
                     <button
                       onClick={() => handleRevokeAccess(employee.id)}
-                      disabled={isRevoking}
+                      disabled={isRevoking || !employee.id}
                       className={`px-6 py-3 rounded-lg font-semibold transition ${
-                        isRevoking
+                        isRevoking || !employee.id
                           ? 'bg-slate-700/50 text-slate-400 cursor-not-allowed'
                           : 'bg-red-500 hover:bg-red-600 text-white'
                       }`}
                     >
-                      {isRevoking ? 'Revoking Access...' : 'Revoke System Access'}
+                      {isRevoking ? 'Revoking Access...' : !employee.id ? 'Invalid Employee' : 'Revoke System Access'}
                     </button>
                   </div>
                 </div>

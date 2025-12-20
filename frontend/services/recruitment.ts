@@ -412,3 +412,11 @@ export async function getEvaluationCriteria(role: string, department?: string): 
   if (department) params.append('department', department);
   return apiClient.get(`/evaluation-criteria?${params.toString()}`);
 }
+
+// ==========================================
+// SYSTEM ADMIN - PROVISIONING (ONB-009)
+// ==========================================
+
+export async function provisionSystemAccess(employeeId: string): Promise<any> {
+  return apiClient.post(`/onboarding/employee/${employeeId}/provision-access`);
+}

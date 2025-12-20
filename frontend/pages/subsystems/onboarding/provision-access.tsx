@@ -25,14 +25,8 @@ export default function ProvisionSystemAccess() {
     try {
       setLoading(true);
       const response = await getAllOnboarding();
-      // Filter for onboarding records that need provisioning
-      const needsProvisioning = response.data.filter((onboarding: any) => {
-        const hasProvisioningTasks = onboarding.tasks?.some(
-          (task: any) => task.systemAdminTask === true && task.provisioningRequired === true
-        );
-        return hasProvisioningTasks;
-      });
-      setOnboardingList(needsProvisioning);
+      // Show all onboarding records - System Admin can see all to decide which need provisioning
+      setOnboardingList(response.data || []);
       setError(null);
     } catch (err: any) {
       console.error('Error fetching onboarding:', err);
@@ -50,7 +44,9 @@ export default function ProvisionSystemAccess() {
     try {
       setProvisioning({ ...provisioning, [employeeId]: true });
       const response = await provisionSystemAccess(employeeId);
-      alert(`System access provisioned successfully!\n\nActions completed:\n${response.actions.map((a: string) => `- ${a}`).join('\n')}`);
+      const data = response.data || response;
+      const actions = data.actions || ['System access provisioned'];
+      alert(`System access provisioned successfully!\n\nActions completed:\n${actions.map((a: string) => `- ${a}`).join('\n')}`);
       await fetchOnboardingList(); // Refresh list
     } catch (err: any) {
       console.error('Error provisioning access:', err);
@@ -62,21 +58,36 @@ export default function ProvisionSystemAccess() {
 
   const getEmployeeInfo = (onboarding: any) => {
     const employee = onboarding.employeeId;
-    if (typeof employee === 'object' && employee !== null) {
+    
+    // Handle populated employee object
+    if (employee && typeof employee === 'object' && employee._id) {
       return {
-        id: employee._id?.toString() || '',
-        number: employee.employeeNumber || 'N/A',
+        id: employee._id.toString(),
+        number: employee.employeeNumber || 'Unknown',
         name: employee.firstName && employee.lastName 
           ? `${employee.firstName} ${employee.lastName}` 
-          : employee.employeeNumber || 'N/A',
-        email: employee.workEmail || employee.personalEmail || 'N/A',
+          : employee.employeeNumber || 'Unknown',
+        email: employee.workEmail || employee.personalEmail || 'No email',
       };
     }
+    
+    // Handle unpopulated employee ID (just string/ObjectId)
+    if (employee) {
+      const empId = typeof employee === 'string' ? employee : employee.toString();
+      return {
+        id: empId,
+        number: empId.slice(-8),
+        name: `Employee ${empId.slice(-8)}`,
+        email: 'Not available',
+      };
+    }
+    
+    // Fallback - should not happen
     return {
-      id: String(employee || onboarding.employeeId || ''),
-      number: 'N/A',
-      name: 'N/A',
-      email: 'N/A',
+      id: '',
+      number: 'Unknown',
+      name: 'Unknown Employee',
+      email: 'Not available',
     };
   };
 
@@ -159,14 +170,14 @@ export default function ProvisionSystemAccess() {
                   <div className="mt-4 pt-4 border-t border-white/10">
                     <button
                       onClick={() => handleProvisionAccess(employee.id)}
-                      disabled={isProvisioning || !needsProvisioning}
+                      disabled={isProvisioning || !needsProvisioning || !employee.id}
                       className={`px-6 py-3 rounded-lg font-semibold transition ${
-                        isProvisioning || !needsProvisioning
+                        isProvisioning || !needsProvisioning || !employee.id
                           ? 'bg-slate-700/50 text-slate-400 cursor-not-allowed'
                           : 'bg-blue-500 hover:bg-blue-600 text-white'
                       }`}
                     >
-                      {isProvisioning ? 'Provisioning...' : 'Provision System Access'}
+                      {isProvisioning ? 'Provisioning...' : !employee.id ? 'Invalid Employee' : 'Provision System Access'}
                     </button>
                   </div>
                 </div>
