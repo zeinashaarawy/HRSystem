@@ -183,6 +183,12 @@ export default function PayrollExecution() {
     rejectionReason: "",
   });
 
+  const [editRunForm, setEditRunForm] = useState({
+    authorizedBy: "",
+    comment: "",
+    totalnetpay: "",
+  });
+
   // Signing bonuses state
   const [signingBonuses, setSigningBonuses] = useState<SigningBonus[]>([]);
   const [selectedSigningBonusId, setSelectedSigningBonusId] = useState<string>("");
@@ -419,6 +425,38 @@ export default function PayrollExecution() {
     }
   }
 
+  async function onEditPayrollRun() {
+    const payrollRunId = selectedPayrollRunId;
+    if (!isMongoObjectId(payrollRunId)) {
+      setError("Select a payroll run with a valid id first.");
+      return;
+    }
+
+    // Default to 'Manual_Override' if not specified, to avoid blocking the user
+    const authorizedBy = editRunForm.authorizedBy.trim() || "Manual_Override";
+
+    setActionLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const payload: any = {
+        authorizedBy,
+        comment: editRunForm.comment.trim() || undefined,
+        totalnetpay: editRunForm.totalnetpay ? Number(editRunForm.totalnetpay) : undefined,
+      };
+
+      const updatedRun = await payrollExecutionApi.editPayrollRun(payrollRunId, payload);
+      setSuccess("Payroll run updated.");
+      setSelectedPayrollRun(updatedRun);
+      await loadPayrollRuns();
+    } catch (e2) {
+      setError(`Failed to update payroll run: ${getApiErrorMessage(e2)}`);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   async function loadSigningBonuses() {
     setLoading(true);
     setError(null);
@@ -557,10 +595,8 @@ export default function PayrollExecution() {
       return;
     }
 
-    if (!terminationBenefitOverrideForm.authorizedBy.trim()) {
-      setError("authorizedBy is required for manual override.");
-      return;
-    }
+    // Default to 'Manual_Override' if not specified, to avoid blocking the user
+    const authorizedBy = terminationBenefitOverrideForm.authorizedBy.trim() || "Manual_Override";
 
     setActionLoading(true);
     setError(null);
@@ -568,7 +604,7 @@ export default function PayrollExecution() {
 
     try {
       await payrollExecutionApi.manualOverrideTerminationBenefit(id, {
-        authorizedBy: terminationBenefitOverrideForm.authorizedBy.trim(),
+        authorizedBy,
         comment: terminationBenefitOverrideForm.comment.trim() || undefined,
         status: terminationBenefitOverrideForm.status || undefined,
       });
@@ -687,11 +723,10 @@ export default function PayrollExecution() {
                 key={t.key}
                 type="button"
                 onClick={() => setActiveTab(t.key)}
-                className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 transition-all ${
-                  activeTab === t.key
-                    ? "border-cyan-400 bg-cyan-500/10"
-                    : "border-white/10 bg-white/5 hover:bg-white/10"
-                }`}
+                className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 transition-all ${activeTab === t.key
+                  ? "border-cyan-400 bg-cyan-500/10"
+                  : "border-white/10 bg-white/5 hover:bg-white/10"
+                  }`}
               >
                 {t.icon}
                 {t.label}
@@ -1006,11 +1041,10 @@ export default function PayrollExecution() {
                             setSelectedPayrollRun(run);
                             setPayrollRunPreview(null);
                           }}
-                          className={`w-full text-left rounded-xl border px-3 py-2.5 text-xs transition-all ${
-                            selected
-                              ? "border-cyan-400 bg-cyan-500/10"
-                              : "border-white/10 bg-slate-900/40 hover:bg-slate-900/70"
-                          }`}
+                          className={`w-full text-left rounded-xl border px-3 py-2.5 text-xs transition-all ${selected
+                            ? "border-cyan-400 bg-cyan-500/10"
+                            : "border-white/10 bg-slate-900/40 hover:bg-slate-900/70"
+                            }`}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <span className="font-medium">
@@ -1123,6 +1157,49 @@ export default function PayrollExecution() {
                         className="w-full rounded-lg bg-slate-900/60 border border-white/10 px-3 py-2"
                       />
                     </div>
+
+                    <div className="border-t border-white/10 pt-3 mt-3">
+                      <p className="text-xs text-gray-200 font-medium mb-2">Edit / Manual Override</p>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs mb-3">
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] text-gray-300">Authorized By (required)</label>
+                          <input
+                            value={editRunForm.authorizedBy}
+                            onChange={(e) => setEditRunForm((p) => ({ ...p, authorizedBy: e.target.value }))}
+                            className="w-full rounded-lg bg-slate-900/60 border border-white/10 px-3 py-2"
+                            placeholder="Specialist ID"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] text-gray-300">Edit Comment</label>
+                          <input
+                            value={editRunForm.comment}
+                            onChange={(e) => setEditRunForm((p) => ({ ...p, comment: e.target.value }))}
+                            className="w-full rounded-lg bg-slate-900/60 border border-white/10 px-3 py-2"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5 text-xs mb-3">
+                        <label className="text-[11px] text-gray-300">Override Total Net Pay (optional)</label>
+                        <input
+                          type="number"
+                          value={editRunForm.totalnetpay}
+                          onChange={(e) => setEditRunForm((p) => ({ ...p, totalnetpay: e.target.value }))}
+                          className="w-full rounded-lg bg-slate-900/60 border border-white/10 px-3 py-2"
+                          placeholder="Enter new amount"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={onEditPayrollRun}
+                        disabled={actionLoading}
+                        className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium hover:bg-indigo-500 disabled:opacity-60"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Update
+                      </button>
+                    </div>
+
 
                     <div className="rounded-xl border border-white/10 bg-slate-900/60 p-3">
                       <div className="flex items-center justify-between text-[11px] text-gray-300 mb-2">
@@ -1323,11 +1400,10 @@ export default function PayrollExecution() {
                         key={b.id ?? b._id ?? Math.random()}
                         type="button"
                         onClick={() => setSelectedSigningBonusId(b.id ?? b._id ?? "")}
-                        className={`w-full text-left rounded-xl border px-3 py-2.5 text-xs transition-all ${
-                          selectedSigningBonusId === (b.id ?? b._id)
-                            ? "border-cyan-400 bg-cyan-500/10"
-                            : "border-white/10 bg-slate-900/40 hover:bg-slate-900/70"
-                        }`}
+                        className={`w-full text-left rounded-xl border px-3 py-2.5 text-xs transition-all ${selectedSigningBonusId === (b.id ?? b._id)
+                          ? "border-cyan-400 bg-cyan-500/10"
+                          : "border-white/10 bg-slate-900/40 hover:bg-slate-900/70"
+                          }`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-medium">{b.employeeName ?? b.employeeId ?? "Employee"}</span>
@@ -1506,11 +1582,10 @@ export default function PayrollExecution() {
                         key={b.id ?? b._id ?? Math.random()}
                         type="button"
                         onClick={() => setSelectedTerminationBenefitId(b.id ?? b._id ?? "")}
-                        className={`w-full text-left rounded-xl border px-3 py-2.5 text-xs transition-all ${
-                          selectedTerminationBenefitId === (b.id ?? b._id)
-                            ? "border-cyan-400 bg-cyan-500/10"
-                            : "border-white/10 bg-slate-900/40 hover:bg-slate-900/70"
-                        }`}
+                        className={`w-full text-left rounded-xl border px-3 py-2.5 text-xs transition-all ${selectedTerminationBenefitId === (b.id ?? b._id)
+                          ? "border-cyan-400 bg-cyan-500/10"
+                          : "border-white/10 bg-slate-900/40 hover:bg-slate-900/70"
+                          }`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-medium">{b.employeeName ?? b.employeeId ?? "Employee"}</span>
@@ -1660,11 +1735,10 @@ export default function PayrollExecution() {
                           key={id ?? Math.random()}
                           type="button"
                           onClick={() => setSelectedPayslipId(id ?? "")}
-                          className={`w-full text-left rounded-xl border px-3 py-2.5 text-xs transition-all ${
-                            selectedPayslipId === id
-                              ? "border-cyan-400 bg-cyan-500/10"
-                              : "border-white/10 bg-slate-900/40 hover:bg-slate-900/70"
-                          }`}
+                          className={`w-full text-left rounded-xl border px-3 py-2.5 text-xs transition-all ${selectedPayslipId === id
+                            ? "border-cyan-400 bg-cyan-500/10"
+                            : "border-white/10 bg-slate-900/40 hover:bg-slate-900/70"
+                            }`}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <span className="font-medium">{employee}</span>

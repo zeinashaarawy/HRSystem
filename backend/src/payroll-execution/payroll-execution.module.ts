@@ -10,6 +10,14 @@ import { payrollRuns, payrollRunsSchema } from './models/payrollRuns.schema';
 import { paySlip, paySlipSchema } from './models/payslip.schema';
 import { signingBonus, signingBonusSchema } from '../payroll-configuration/models/signingBonus.schema';
 import { terminationAndResignationBenefits, terminationAndResignationBenefitsSchema } from '../payroll-configuration/models/terminationAndResignationBenefits';
+import { EmployeeProfile, EmployeeProfileSchema } from '../employee-profile/models/employee-profile.schema';
+import { Contract, ContractSchema } from '../recruitment/models/contract.schema';
+import { TerminationRequest, TerminationRequestSchema } from '../recruitment/models/termination-request.schema';
+import { ClearanceChecklist, ClearanceChecklistSchema } from '../recruitment/models/clearance-checklist.schema';
+import { allowance, allowanceSchema } from '../payroll-configuration/models/allowance.schema';
+import { taxRules, taxRulesSchema } from '../payroll-configuration/models/taxRules.schema';
+import { insuranceBrackets, insuranceBracketsSchema } from '../payroll-configuration/models/insuranceBrackets.schema';
+import { payGrade, payGradeSchema } from '../payroll-configuration/models/payGrades.schema';
 
 @Module({
   imports: [
@@ -22,6 +30,14 @@ import { terminationAndResignationBenefits, terminationAndResignationBenefitsSch
       { name: employeePenalties.name, schema: employeePenaltiesSchema },
       { name: signingBonus.name, schema: signingBonusSchema },
       { name: terminationAndResignationBenefits.name, schema: terminationAndResignationBenefitsSchema },
+      { name: EmployeeProfile.name, schema: EmployeeProfileSchema },
+      { name: Contract.name, schema: ContractSchema },
+      { name: TerminationRequest.name, schema: TerminationRequestSchema },
+      { name: ClearanceChecklist.name, schema: ClearanceChecklistSchema },
+      { name: allowance.name, schema: allowanceSchema },
+      { name: taxRules.name, schema: taxRulesSchema },
+      { name: insuranceBrackets.name, schema: insuranceBracketsSchema },
+      { name: payGrade.name, schema: payGradeSchema },
     ]),
   ],
   controllers: [PayrollExecutionController],

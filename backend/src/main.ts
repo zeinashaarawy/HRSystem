@@ -23,7 +23,7 @@ async function bootstrap() {
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization", "x-user-id", "x-user-role"],
   });
-  
+
 
   // ---- SWAGGER ----
   const config = new DocumentBuilder()

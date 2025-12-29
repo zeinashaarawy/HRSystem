@@ -12,6 +12,8 @@ import {
   Model,
   Types,
 } from 'mongoose';
+import { TerminationInitiation } from '../recruitment/enums/termination-initiation.enum';
+import { TerminationStatus } from '../recruitment/enums/termination-status.enum';
 import {
   employeeSigningBonus,
   employeeSigningBonusDocument,
@@ -332,6 +334,10 @@ export class PayrollExecutionService {
     @InjectModel(EmployeeTerminationResignation.name)
     terminationBenefitModel?: Model<EmployeeTerminationResignation>,
     @Optional()
+
+
+
+
     @InjectModel(payrollRuns.name)
     payrollRunModel?: Model<payrollRunsDocument>,
     @Optional()
@@ -414,6 +420,37 @@ export class PayrollExecutionService {
     filter: SigningBonusReviewFilter = {},
   ): Promise<SigningBonusReviewItem[]> {
     try {
+      // SYNC STEP: Auto-discover signing bonuses from Contracts that aren't yet tracked
+      const eligibleContracts = await this.contractModel
+        .find({
+          $or: [
+            { signingBonusEligible: true },
+            { signingBonusAmount: { $gt: 0 } },
+          ],
+        })
+        .lean()
+        .exec();
+
+      for (const contract of eligibleContracts) {
+        if (!contract.employeeId) continue;
+
+        const exists = await this.signingBonusModel.exists({
+          employeeId: contract.employeeId,
+        });
+
+        if (!exists) {
+          await this.signingBonusModel.create({
+            employeeId: contract.employeeId,
+            signingBonusId: contract.signingBonusId, // Can be undefined
+            givenAmount: contract.signingBonusAmount || 0,
+            paymentDate: new Date(), // Default to now, allow override
+            status: BonusStatus.PENDING,
+            processedAutomatically: true,
+            createdAt: new Date(),
+          });
+        }
+      }
+
       const query: FilterQuery<employeeSigningBonusDocument> = {};
 
       // Status filter
@@ -755,6 +792,31 @@ export class PayrollExecutionService {
   ): Promise<TerminationBenefitReviewItem[]> {
     console.log('=== Starting getProcessedTerminationBenefits ===');
     console.log('Filter:', JSON.stringify(filter, null, 2));
+
+    try {
+      // SYNC STEP: Auto-discover termination/resignation benefits from Approved TerminationRequests
+      const approvedRequests = await this.terminationRequestModel
+        .find({ status: TerminationStatus.APPROVED })
+        .lean()
+        .exec();
+
+      for (const req of approvedRequests as any[]) {
+        const exists = await this.terminationBenefitModel.exists({ terminationId: req._id });
+        if (!exists) {
+          try {
+            if (req.initiator === TerminationInitiation.EMPLOYEE) {
+              await this.handleResignationEvent(req.employeeId.toString(), req._id.toString());
+            } else {
+              await this.handleTerminationEvent(req.employeeId.toString(), req._id.toString());
+            }
+          } catch (err) {
+            console.error(`Failed to auto-process termination benefit for req ${req._id}:`, err);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Termination Process Sync Failed:', err);
+    }
 
     const query: FilterQuery<LeanEmployeeTerminationResignation> = {};
 
@@ -1452,7 +1514,13 @@ export class PayrollExecutionService {
       payrollSpecialistId: dto.payrollSpecialistId,
     });
 
-    return this.buildPayrollRunReviewItem(newPayrollRun.toObject());
+    // Automatically calculate the payroll details for this new run
+    return this.calculatePayrollAutomatically({
+      payrollPeriod: dto.payrollPeriod,
+      entity: dto.entity,
+      payrollRunId: newPayrollRun._id.toString(),
+      payrollSpecialistId: dto.payrollSpecialistId,
+    });
   }
 
   private normalizeBenefitStatus(
