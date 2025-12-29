@@ -64,6 +64,14 @@ export async function deleteInsuranceBracket(id: string) {
   return res.data as any;
 }
 
+export async function deleteConfig(
+  resource: PayrollConfigResourceSlug,
+  id: string,
+) {
+  const res = await api.delete(`${BASE}/${resource}/${id}`);
+  return res.data as any;
+}
+
 export async function approveInsuranceBracket(id: string, approverId: string) {
   const res = await api.patch(`${BASE}/insurance-brackets/${id}/approve`, { approverId });
   return res.data as any;

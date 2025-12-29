@@ -23,7 +23,7 @@ import {
   terminationAndResignationBenefits,
   terminationAndResignationBenefitsSchema,
 } from './models/terminationAndResignationBenefits';
-import { payGrade } from './models/payGrades.schema';
+import { payGrade, payGradeSchema } from './models/payGrades.schema';
 
 @Module({
   imports: [
@@ -39,7 +39,7 @@ import { payGrade } from './models/payGrades.schema';
         schema: terminationAndResignationBenefitsSchema,
       },
       { name: CompanyWideSettings.name, schema: CompanyWideSettingsSchema },
-      { name: payGrade.name, schema: payTypeSchema },
+      { name: payGrade.name, schema: payGradeSchema },
     ]),
   ],
   controllers: [PayrollConfigurationController],

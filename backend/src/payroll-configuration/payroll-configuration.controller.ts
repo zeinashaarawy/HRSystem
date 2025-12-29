@@ -31,7 +31,7 @@ import {
 export class PayrollConfigurationController {
   constructor(
     private readonly payrollConfigurationService: PayrollConfigurationService,
-  ) {}
+  ) { }
 
   // Insurance Brackets
   @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
@@ -136,6 +136,32 @@ export class PayrollConfigurationController {
   }
 
   @Roles(SystemRole.HR_MANAGER)
+  @Patch('payroll-policies/:configId/approve')
+  approvePayrollPolicy(
+    @Param('configId') configId: string,
+    @Body() { approverId }: ApproveInsuranceBracketDto,
+  ) {
+    return this.payrollConfigurationService.approveConfiguration(
+      'payrollPolicies',
+      configId,
+      approverId,
+    );
+  }
+
+  @Roles(SystemRole.HR_MANAGER)
+  @Patch('payroll-policies/:configId/reject')
+  rejectPayrollPolicy(
+    @Param('configId') configId: string,
+    @Body() { reviewerId }: RejectInsuranceBracketDto,
+  ) {
+    return this.payrollConfigurationService.rejectConfiguration(
+      'payrollPolicies',
+      configId,
+      reviewerId,
+    );
+  }
+
+  @Roles(SystemRole.HR_MANAGER)
   @Patch('payroll-policies/:configId')
   updatePayrollPolicy(
     @Param('configId') configId: string,
@@ -144,6 +170,15 @@ export class PayrollConfigurationController {
     return this.payrollConfigurationService.updatePayrollPolicy(
       configId,
       payload,
+    );
+  }
+
+  @Roles(SystemRole.HR_MANAGER)
+  @Delete('payroll-policies/:configId')
+  deletePayrollPolicy(@Param('configId') configId: string) {
+    return this.payrollConfigurationService.deleteConfiguration(
+      'payrollPolicies',
+      configId,
     );
   }
 
@@ -178,15 +213,6 @@ export class PayrollConfigurationController {
   }
 
   @Roles(SystemRole.HR_MANAGER)
-  @Patch('pay-grades/:configId')
-  updatePayGrade(
-    @Param('configId') configId: string,
-    @Body() { payload }: UpdateConfigurationDto,
-  ) {
-    return this.payrollConfigurationService.updatePayGrade(configId, payload);
-  }
-
-  @Roles(SystemRole.HR_MANAGER)
   @Patch('pay-grades/:configId/approve')
   approvePayGrade(
     @Param('configId') configId: string,
@@ -212,7 +238,25 @@ export class PayrollConfigurationController {
     );
   }
 
-  // Pay Types Configuration Endpoin  // Pay Types Configuration Endpoints
+  @Roles(SystemRole.HR_MANAGER)
+  @Patch('pay-grades/:configId')
+  updatePayGrade(
+    @Param('configId') configId: string,
+    @Body() { payload }: UpdateConfigurationDto,
+  ) {
+    return this.payrollConfigurationService.updatePayGrade(configId, payload);
+  }
+
+  @Roles(SystemRole.HR_MANAGER)
+  @Delete('pay-grades/:configId')
+  deletePayGrade(@Param('configId') configId: string) {
+    return this.payrollConfigurationService.deleteConfiguration(
+      'payGrade',
+      configId,
+    );
+  }
+
+  // Pay Types Configuration Endpoints
   @Roles(SystemRole.HR_MANAGER)
   @Post('pay-types')
   createPayType(@Body() payload: CreateConfigurationDto) {
@@ -243,12 +287,47 @@ export class PayrollConfigurationController {
   }
 
   @Roles(SystemRole.HR_MANAGER)
+  @Patch('pay-types/:configId/approve')
+  approvePayType(
+    @Param('configId') configId: string,
+    @Body() { approverId }: ApproveInsuranceBracketDto,
+  ) {
+    return this.payrollConfigurationService.approveConfiguration(
+      'payType',
+      configId,
+      approverId,
+    );
+  }
+
+  @Roles(SystemRole.HR_MANAGER)
+  @Patch('pay-types/:configId/reject')
+  rejectPayType(
+    @Param('configId') configId: string,
+    @Body() { reviewerId }: RejectInsuranceBracketDto,
+  ) {
+    return this.payrollConfigurationService.rejectConfiguration(
+      'payType',
+      configId,
+      reviewerId,
+    );
+  }
+
+  @Roles(SystemRole.HR_MANAGER)
   @Patch('pay-types/:configId')
   updatePayType(
     @Param('configId') configId: string,
     @Body() { payload }: UpdateConfigurationDto,
   ) {
     return this.payrollConfigurationService.updatePayType(configId, payload);
+  }
+
+  @Roles(SystemRole.HR_MANAGER)
+  @Delete('pay-types/:configId')
+  deletePayType(@Param('configId') configId: string) {
+    return this.payrollConfigurationService.deleteConfiguration(
+      'payType',
+      configId,
+    );
   }
 
   // Allowance Configuration Endpoints
@@ -281,15 +360,6 @@ export class PayrollConfigurationController {
     return this.payrollConfigurationService.getAllowance(configId);
   }
 
-  @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.HR_MANAGER)
-  @Patch('allowances/:configId')
-  updateAllowance(
-    @Param('configId') configId: string,
-    @Body() { payload }: UpdateConfigurationDto,
-  ) {
-    return this.payrollConfigurationService.updateAllowance(configId, payload);
-  }
-
   @Roles(SystemRole.HR_MANAGER)
   @Patch('allowances/:configId/approve')
   approveAllowance(
@@ -316,7 +386,25 @@ export class PayrollConfigurationController {
     );
   }
 
-  // Signing Bonus Configu  // Signing Bonus Configuration Endpoints
+  @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.HR_MANAGER)
+  @Patch('allowances/:configId')
+  updateAllowance(
+    @Param('configId') configId: string,
+    @Body() { payload }: UpdateConfigurationDto,
+  ) {
+    return this.payrollConfigurationService.updateAllowance(configId, payload);
+  }
+
+  @Roles(SystemRole.HR_MANAGER)
+  @Delete('allowances/:configId')
+  deleteAllowance(@Param('configId') configId: string) {
+    return this.payrollConfigurationService.deleteConfiguration(
+      'allowance',
+      configId,
+    );
+  }
+
+  // Signing Bonus Configuration Endpoints
   @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.HR_MANAGER)
   @Post('signing-bonuses')
   createSigningBonus(@Body() payload: CreateConfigurationDto) {
@@ -346,6 +434,32 @@ export class PayrollConfigurationController {
     return this.payrollConfigurationService.getSigningBonus(configId);
   }
 
+  @Roles(SystemRole.HR_MANAGER)
+  @Patch('signing-bonuses/:configId/approve')
+  approveSigningBonus(
+    @Param('configId') configId: string,
+    @Body() { approverId }: ApproveInsuranceBracketDto,
+  ) {
+    return this.payrollConfigurationService.approveConfiguration(
+      'signingBonus',
+      configId,
+      approverId,
+    );
+  }
+
+  @Roles(SystemRole.HR_MANAGER)
+  @Patch('signing-bonuses/:configId/reject')
+  rejectSigningBonus(
+    @Param('configId') configId: string,
+    @Body() { reviewerId }: RejectInsuranceBracketDto,
+  ) {
+    return this.payrollConfigurationService.rejectConfiguration(
+      'signingBonus',
+      configId,
+      reviewerId,
+    );
+  }
+
   @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.HR_MANAGER)
   @Patch('signing-bonuses/:configId')
   updateSigningBonus(
@@ -355,6 +469,15 @@ export class PayrollConfigurationController {
     return this.payrollConfigurationService.updateSigningBonus(
       configId,
       payload,
+    );
+  }
+
+  @Roles(SystemRole.HR_MANAGER)
+  @Delete('signing-bonuses/:configId')
+  deleteSigningBonus(@Param('configId') configId: string) {
+    return this.payrollConfigurationService.deleteConfiguration(
+      'signingBonus',
+      configId,
     );
   }
 
@@ -392,18 +515,6 @@ export class PayrollConfigurationController {
     );
   }
 
-  @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.HR_MANAGER)
-  @Patch('termination-resignation-benefits/:configId')
-  updateTerminationResignationBenefits(
-    @Param('configId') configId: string,
-    @Body() { payload }: UpdateConfigurationDto,
-  ) {
-    return this.payrollConfigurationService.updateTerminationResignationBenefits(
-      configId,
-      payload,
-    );
-  }
-
   @Roles(SystemRole.HR_MANAGER)
   @Patch('termination-resignation-benefits/:configId/approve')
   approveTerminationResignationBenefits(
@@ -427,6 +538,27 @@ export class PayrollConfigurationController {
       'terminationAndResignationBenefits',
       configId,
       reviewerId,
+    );
+  }
+
+  @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.HR_MANAGER)
+  @Patch('termination-resignation-benefits/:configId')
+  updateTerminationResignationBenefits(
+    @Param('configId') configId: string,
+    @Body() { payload }: UpdateConfigurationDto,
+  ) {
+    return this.payrollConfigurationService.updateTerminationResignationBenefits(
+      configId,
+      payload,
+    );
+  }
+
+  @Roles(SystemRole.HR_MANAGER)
+  @Delete('termination-resignation-benefits/:configId')
+  deleteTerminationResignationBenefits(@Param('configId') configId: string) {
+    return this.payrollConfigurationService.deleteConfiguration(
+      'terminationAndResignationBenefits',
+      configId,
     );
   }
 
@@ -467,6 +599,15 @@ export class PayrollConfigurationController {
     );
   }
 
+  @Roles(SystemRole.SYSTEM_ADMIN)
+  @Delete('company-wide-settings/:configId')
+  deleteCompanyWideSettings(@Param('configId') configId: string) {
+    return this.payrollConfigurationService.deleteConfiguration(
+      'CompanyWideSettings',
+      configId,
+    );
+  }
+
   // Tax Rules Configuration Endpoints
   @Roles(SystemRole.SYSTEM_ADMIN)
   @Post('tax-rules')
@@ -498,12 +639,47 @@ export class PayrollConfigurationController {
   }
 
   @Roles(SystemRole.SYSTEM_ADMIN)
+  @Patch('tax-rules/:configId/approve')
+  approveTaxRule(
+    @Param('configId') configId: string,
+    @Body() { approverId }: ApproveInsuranceBracketDto,
+  ) {
+    return this.payrollConfigurationService.approveConfiguration(
+      'taxRules',
+      configId,
+      approverId,
+    );
+  }
+
+  @Roles(SystemRole.SYSTEM_ADMIN)
+  @Patch('tax-rules/:configId/reject')
+  rejectTaxRule(
+    @Param('configId') configId: string,
+    @Body() { reviewerId }: RejectInsuranceBracketDto,
+  ) {
+    return this.payrollConfigurationService.rejectConfiguration(
+      'taxRules',
+      configId,
+      reviewerId,
+    );
+  }
+
+  @Roles(SystemRole.SYSTEM_ADMIN)
   @Patch('tax-rules/:configId')
   updateTaxRule(
     @Param('configId') configId: string,
     @Body() { payload }: UpdateConfigurationDto,
   ) {
     return this.payrollConfigurationService.updateTaxRule(configId, payload);
+  }
+
+  @Roles(SystemRole.SYSTEM_ADMIN)
+  @Delete('tax-rules/:configId')
+  deleteTaxRule(@Param('configId') configId: string) {
+    return this.payrollConfigurationService.deleteConfiguration(
+      'taxRules',
+      configId,
+    );
   }
 
   private normalizeStatusFilter(

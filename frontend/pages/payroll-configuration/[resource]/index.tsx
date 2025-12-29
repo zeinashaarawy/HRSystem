@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw, Trash2 } from 'lucide-react';
 
 import {
   getPayrollConfigResourceMeta,
@@ -9,7 +9,7 @@ import {
   type ConfigStatus,
   type PayrollConfigResourceSlug,
 } from '@/lib/api/payroll-config/resources';
-import { listConfigs } from '@/lib/api/payroll-config/api';
+import { listConfigs, deleteConfig, deleteInsuranceBracket } from '@/lib/api/payroll-config/api';
 import { PayrollConfigLayout } from '@/components/payroll-config/PayrollConfigLayout';
 import {
   getPayrollPermissions,
@@ -151,13 +151,22 @@ export default function PayrollConfigResourceListPage() {
 
         {meta.capabilities.canCreate && perms.canCreate ? (
           isCompanyWideSettings && existingCompanyWideId ? (
-            <Link
-              href={`/payroll-configuration/${meta.slug}/${existingCompanyWideId}`}
-              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-600 px-5 py-3 text-sm hover:opacity-90 transition"
-            >
-              <Plus className="w-4 h-4" />
-              Edit {meta.title}
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                href={`/payroll-configuration/${meta.slug}/new`}
+                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-600 px-5 py-3 text-sm hover:opacity-90 transition"
+              >
+                <Plus className="w-4 h-4" />
+                Create {meta.title}
+              </Link>
+              <Link
+                href={`/payroll-configuration/${meta.slug}/${existingCompanyWideId}`}
+                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 px-5 py-3 text-sm hover:opacity-90 transition"
+              >
+                <Plus className="w-4 h-4" />
+                Edit {meta.title}
+              </Link>
+            </div>
           ) : (
             <Link
               href={`/payroll-configuration/${meta.slug}/new`}
@@ -185,18 +194,21 @@ export default function PayrollConfigResourceListPage() {
                   <th className="px-6 py-4 font-medium">Status</th>
                 ) : null}
                 <th className="px-6 py-4 font-medium">Created</th>
+                {perms.canDelete ? (
+                  <th className="px-6 py-4 font-medium w-20">Actions</th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td className="px-6 py-6 text-gray-300" colSpan={4}>
+                  <td className="px-6 py-6 text-gray-300" colSpan={perms.canDelete ? 5 : 4}>
                     Loading...
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td className="px-6 py-6 text-gray-400" colSpan={4}>
+                  <td className="px-6 py-6 text-gray-400" colSpan={perms.canDelete ? 5 : 4}>
                     No records.
                   </td>
                 </tr>
@@ -210,6 +222,25 @@ export default function PayrollConfigResourceListPage() {
                     it?.type ??
                     it?.positionName ??
                     '—';
+
+                  const onDelete = async (e: React.MouseEvent) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    if (!confirm(`Are you sure you want to delete "${key}"?`)) return;
+
+                    try {
+                      if (meta.slug === 'insurance-brackets') {
+                        await deleteInsuranceBracket(id);
+                      } else {
+                        await deleteConfig(meta.slug as PayrollConfigResourceSlug, id);
+                      }
+                      // Reload list
+                      void load();
+                    } catch (err: any) {
+                      alert(err?.response?.data?.message ?? err?.message ?? 'Failed to delete');
+                    }
+                  };
 
                   return (
                     <tr
@@ -233,6 +264,17 @@ export default function PayrollConfigResourceListPage() {
                       <td className="px-6 py-4 text-gray-400">
                         {formatDate(it?.createdAt)}
                       </td>
+                      {perms.canDelete ? (
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={onDelete}
+                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-2 rounded-lg transition"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      ) : null}
                     </tr>
                   );
                 })

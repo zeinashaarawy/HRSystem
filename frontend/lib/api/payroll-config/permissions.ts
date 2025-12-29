@@ -93,7 +93,7 @@ export function getPayrollPermissions(
         canSeeResource: true,
         canCreate: role === 'HR_MANAGER',
         canEdit: role === 'HR_MANAGER',
-        canDelete: false,
+        canDelete: role === 'HR_MANAGER',
         canApproveReject: role === 'HR_MANAGER',
       };
     }
@@ -108,7 +108,7 @@ export function getPayrollPermissions(
         canSeeResource: true,
         canCreate: role === 'HR_MANAGER',
         canEdit: role === 'HR_MANAGER',
-        canDelete: false,
+        canDelete: role === 'HR_MANAGER',
         canApproveReject: role === 'HR_MANAGER',
       };
     }
@@ -123,7 +123,7 @@ export function getPayrollPermissions(
         canSeeResource: true,
         canCreate: role === 'DEPARTMENT_HEAD' || role === 'HR_MANAGER',
         canEdit: role === 'DEPARTMENT_HEAD' || role === 'HR_MANAGER',
-        canDelete: false,
+        canDelete: role === 'HR_MANAGER',
         canApproveReject: role === 'HR_MANAGER',
       };
     }
@@ -138,8 +138,8 @@ export function getPayrollPermissions(
         canSeeResource: true,
         canCreate: role === 'SYSTEM_ADMIN',
         canEdit: role === 'SYSTEM_ADMIN',
-        canDelete: false,
-        canApproveReject: false,
+        canDelete: role === 'SYSTEM_ADMIN',
+        canApproveReject: role === 'SYSTEM_ADMIN',
       };
     }
 
@@ -153,7 +153,7 @@ export function getPayrollPermissions(
         canSeeResource: canSee,
         canCreate: role === 'HR_MANAGER',
         canEdit: role === 'HR_MANAGER',
-        canDelete: false,
+        canDelete: role === 'HR_MANAGER',
         canApproveReject: role === 'HR_MANAGER',
       };
     }
@@ -168,7 +168,7 @@ export function getPayrollPermissions(
           role === 'DEPARTMENT_HEAD' || role === 'HR_MANAGER' || role === 'SYSTEM_ADMIN',
         canCreate: role === 'DEPARTMENT_HEAD' || role === 'HR_MANAGER',
         canEdit: role === 'DEPARTMENT_HEAD' || role === 'HR_MANAGER',
-        canDelete: false,
+        canDelete: role === 'HR_MANAGER',
         canApproveReject: role === 'HR_MANAGER',
       };
     }
@@ -183,7 +183,7 @@ export function getPayrollPermissions(
           role === 'DEPARTMENT_HEAD' || role === 'HR_MANAGER' || role === 'SYSTEM_ADMIN',
         canCreate: role === 'DEPARTMENT_HEAD' || role === 'HR_MANAGER',
         canEdit: role === 'DEPARTMENT_HEAD' || role === 'HR_MANAGER',
-        canDelete: false,
+        canDelete: role === 'HR_MANAGER',
         canApproveReject: role === 'HR_MANAGER',
       };
     }
@@ -214,7 +214,7 @@ export function getPayrollPermissions(
         canSeeResource: canSee,
         canCreate: canManage,
         canEdit: canManage,
-        canDelete: false,
+        canDelete: canManage,
         canApproveReject: false,
       };
     }

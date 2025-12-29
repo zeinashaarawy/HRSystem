@@ -48,7 +48,7 @@ export class PayrollConfigurationService {
     @Optional()
     @InjectConnection()
     private readonly connection?: Connection,
-  ) {}
+  ) { }
 
   async editConfiguration(
     collection: string,
@@ -105,25 +105,30 @@ export class PayrollConfigurationService {
     }
 
     const model = this.getModel(collection);
-    const approvedDoc = await model
-      .findByIdAndUpdate(
-        configId,
-        {
-          status: ConfigStatus.APPROVED,
-          approvedBy: approverId,
-          approvedAt: new Date(),
-        },
-        { new: true },
-      )
-      .lean();
 
-    if (!approvedDoc) {
-      throw new NotFoundException(
-        `Configuration ${configId} not found in ${collection}`,
-      );
+
+    // Re-fetch to ensure we didn't just approve a rejected one (race condition check)
+    // Actually simpler: just fetch first, check status, then update.
+    const checkDoc = await model.findById(configId).lean() as any;
+    if (!checkDoc) {
+      throw new NotFoundException(`Configuration ${configId} not found in ${collection}`);
+    }
+    if (checkDoc.status === ConfigStatus.REJECTED) {
+      throw new BadRequestException('Cannot approve a rejected configuration.');
+    }
+    if (checkDoc.status === ConfigStatus.APPROVED) {
+      return checkDoc; // Already approved
     }
 
-    return approvedDoc;
+    const finalDoc = await model.findByIdAndUpdate(configId, {
+      status: ConfigStatus.APPROVED,
+      approvedBy: approverId,
+      approvedAt: new Date(),
+    }, { new: true }).lean();
+
+    return finalDoc;
+
+
   }
 
   async rejectConfiguration(
@@ -151,6 +156,9 @@ export class PayrollConfigurationService {
 
     if (doc.status === ConfigStatus.REJECTED) {
       throw new BadRequestException('Configuration already rejected.');
+    }
+    if (doc.status === ConfigStatus.APPROVED) {
+      throw new BadRequestException('Cannot reject an approved configuration.');
     }
 
     doc.status = ConfigStatus.REJECTED;
@@ -186,6 +194,9 @@ export class PayrollConfigurationService {
     const doc = await this.findInsuranceBracketOrThrow(configId);
     if (doc.status === ConfigStatus.REJECTED) {
       throw new BadRequestException('Insurance bracket already rejected.');
+    }
+    if (doc.status === ConfigStatus.APPROVED) {
+      throw new BadRequestException('Cannot reject an approved insurance bracket.');
     }
 
     doc.status = ConfigStatus.REJECTED;
@@ -261,6 +272,9 @@ export class PayrollConfigurationService {
     if (doc.status === ConfigStatus.APPROVED) {
       throw new BadRequestException('Insurance bracket already approved.');
     }
+    if (doc.status === ConfigStatus.REJECTED) {
+      throw new BadRequestException('Cannot approve a rejected insurance bracket.');
+    }
 
     doc.status = ConfigStatus.APPROVED;
     doc.approvedBy = approverId as any;
@@ -272,11 +286,13 @@ export class PayrollConfigurationService {
 
   async deleteInsuranceBracket(configId: string) {
     const doc = await this.findInsuranceBracketOrThrow(configId);
-    if (doc.status === ConfigStatus.APPROVED) {
-      throw new ForbiddenException(
-        'Approved insurance brackets cannot be deleted.',
-      );
-    }
+
+    // Removed restriction as per user request
+    // if (doc.status === ConfigStatus.APPROVED) {
+    //   throw new ForbiddenException(
+    //     'Approved insurance brackets cannot be deleted.',
+    //   );
+    // }
 
     const plainDoc = doc.toObject();
     await doc.deleteOne();
@@ -361,12 +377,103 @@ export class PayrollConfigurationService {
 
   // Pay Grades Configuration
   async createPayGrade(payload: Record<string, any>) {
+    // Validate required fields before attempting to save
+    if (!payload.grade || typeof payload.grade !== 'string' || payload.grade.trim() === '') {
+      throw new BadRequestException('Grade is required');
+    }
+    const normalizedGrade = payload.grade.trim();
+
     const model = this.getModel('payGrade');
-    const newPayGrade = new model({
-      ...payload,
-      status: ConfigStatus.DRAFT,
-    });
-    return (await newPayGrade.save()).toObject();
+
+    try {
+
+      // Log received payload for debugging
+      console.log('createPayGrade received payload:', JSON.stringify(payload, null, 2));
+
+      if (typeof payload.baseSalary !== 'number' || isNaN(payload.baseSalary) || payload.baseSalary < 6000) {
+        throw new BadRequestException(`Base salary is required and must be at least 6000. Received: ${payload.baseSalary} (type: ${typeof payload.baseSalary})`);
+      }
+      if (typeof payload.grossSalary !== 'number' || isNaN(payload.grossSalary) || payload.grossSalary < 6000) {
+        throw new BadRequestException(`Gross salary is required and must be at least 6000. Received: ${payload.grossSalary} (type: ${typeof payload.grossSalary})`);
+      }
+
+      // Idempotency/duplicate check: if a pay grade with the same normalized name exists,
+      // return it instead of throwing an error. This also mitigates double-submits.
+      // We fetch all grades to perform a reliable case-insensitive duplicate check in memory
+      // This bypasses potential regex/collation issues in the database layer.
+      const allGrades = await model.find().lean();
+      const existing = allGrades.find(
+        (g) => g.grade.trim().toLowerCase() === normalizedGrade.toLowerCase()
+      );
+      if (existing) {
+        return existing;
+      }
+
+      const newPayGrade = new model({
+        ...payload,
+        grade: normalizedGrade,
+        status: ConfigStatus.DRAFT,
+      });
+      return (await newPayGrade.save()).toObject();
+    } catch (error: any) {
+      // Handle validation errors first
+      if (error.name === 'ValidationError') {
+        const errors = Object.values(error.errors || {}).map((e: any) => e.message);
+        throw new BadRequestException(
+          `Validation failed: ${errors.join(', ')}`,
+        );
+      }
+      // Handle duplicate key errors
+      if (error.code === 11000) {
+        // Extract the duplicate field and value from the error
+        const duplicateField = error.keyPattern ? Object.keys(error.keyPattern)[0] : 'grade';
+        // Log error details for debugging
+        console.log('Duplicate key error details:', {
+          keyPattern: error.keyPattern,
+          keyValue: error.keyValue,
+          duplicateField,
+          payloadGrade: payload?.grade
+        });
+
+        // SELF-HEALING: Detect rogue 'type' index (which belongs to payType, not payGrade)
+        // If we hit a duplicate on "type" (and value is null), it means there's an invalid index.
+        if (duplicateField === 'type') {
+          console.warn('Rogue index "type_1" detected on payGrade collection. Attempting to drop...');
+          try {
+            await model.collection.dropIndex('type_1');
+            console.warn('Successfully dropped rogue "type_1" index. Retrying save...');
+            // Retry the creation once
+            const retryPayGrade = new model({
+              ...payload,
+              grade: normalizedGrade,
+              status: ConfigStatus.DRAFT,
+            });
+            return (await retryPayGrade.save()).toObject();
+          } catch (dropError) {
+            console.error('Failed to drop rogue index or retry save:', dropError);
+            // Fall through to standard error if healing fails
+          }
+        }
+
+        // Try to get the duplicate value from error.keyValue first, then from the payload
+        const duplicateValue = error.keyValue?.[duplicateField] ??
+          error.keyValue?.grade ??
+          payload?.grade ??
+          payload?.[duplicateField] ??
+          'this value';
+        throw new BadRequestException(
+          `Pay grade with "${duplicateValue}" already exists. Please choose a different grade name.`,
+        );
+      }
+      // Re-throw BadRequestException as-is
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      // Handle other errors
+      throw new InternalServerErrorException(
+        error?.message ?? 'Failed to create pay grade',
+      );
+    }
   }
 
   async updatePayGrade(configId: string, payload: Record<string, any>) {
@@ -584,7 +691,7 @@ export class PayrollConfigurationService {
   // Company-Wide Settings Configuration
   async createCompanyWideSettings(payload: Record<string, any>) {
     const model = this.getModel('CompanyWideSettings');
-    
+
     // Validate required fields
     if (!payload.payDate) {
       throw new BadRequestException('payDate is required');

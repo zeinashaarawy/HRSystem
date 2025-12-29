@@ -81,10 +81,75 @@ export default function PayrollConfigNewPage() {
     e.preventDefault();
     if (!meta) return;
 
+    // Clean and validate the form data
+    const fields = pickFormFields(meta.slug);
+    const cleanedForm: Record<string, any> = {};
+    const missingFields: string[] = [];
+
+    console.log('Form validation - starting with form state:', form);
+
+    for (const field of fields) {
+      let value = getIn(form, field.path);
+      console.log(`Processing field ${field.path}:`, { value, type: typeof value, fieldType: field.type });
+      
+      // Handle different field types
+      if (field.type === 'number') {
+        // For numbers, convert string to number
+        if (value === '' || value === null || value === undefined) {
+          if (field.required) {
+            missingFields.push(field.label);
+          }
+        } else {
+          // Convert to number - handle both string and number inputs
+          const num = typeof value === 'string' ? parseFloat(value) : Number(value);
+          if (!isNaN(num) && isFinite(num)) {
+            Object.assign(cleanedForm, setIn(cleanedForm, field.path, num));
+            console.log(`Added ${field.path} to cleanedForm:`, num);
+          } else if (field.required) {
+            missingFields.push(`${field.label} must be a valid number`);
+          }
+        }
+      } else {
+        // For text fields, trim whitespace
+        if (typeof value === 'string') {
+          value = value.trim();
+        }
+        
+        if (value === '' || value === null || value === undefined) {
+          if (field.required) {
+            missingFields.push(field.label);
+            console.log(`Missing required field: ${field.label} (path: ${field.path})`);
+          }
+        } else {
+          Object.assign(cleanedForm, setIn(cleanedForm, field.path, value));
+          console.log(`Added ${field.path} to cleanedForm:`, value);
+        }
+      }
+    }
+
+    console.log('Form validation - cleanedForm:', cleanedForm);
+    console.log('Form validation - missingFields:', missingFields);
+
+    if (missingFields.length > 0) {
+      setError(`Please fill in all required fields: ${missingFields.join(', ')}`);
+      return;
+    }
+
+    // Prevent double submission
+    if (saving) {
+      return;
+    }
+
     setSaving(true);
     setError(null);
+    
+    // Log what we're sending for debugging
+    console.log('Submitting form data:', cleanedForm);
+    console.log('Original form state:', form);
+    console.log('Fields:', fields.map(f => ({ path: f.path, value: getIn(form, f.path), type: f.type })));
+    
     try {
-      const created = await createConfig(meta.slug, form);
+      const created = await createConfig(meta.slug, cleanedForm);
       const createdId = created?._id ?? created?.id;
       if (createdId) {
         await router.push(
@@ -94,7 +159,22 @@ export default function PayrollConfigNewPage() {
         await router.push(`/payroll-configuration/${meta.slug}`);
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message ?? err?.message ?? 'Failed to create');
+      // Extract error message from various possible locations
+      const errorMessage = 
+        err?.response?.data?.message ?? 
+        err?.response?.data?.error ?? 
+        ((typeof err?.response?.data === 'string' ? err.response.data : null) ||
+        err?.message) ?? 
+        'Failed to create';
+      
+      console.error('Create error details:', {
+        status: err?.response?.status,
+        data: err?.response?.data,
+        message: errorMessage,
+        payload: cleanedForm
+      });
+      
+      setError(errorMessage);
     } finally {
       setSaving(false);
     }
